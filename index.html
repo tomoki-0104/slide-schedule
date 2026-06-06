@@ -141,6 +141,9 @@ button.cancel{background:#888;}
   <button id="btnLinkNew" class="ghost" title="新規 schedule.json を作成して連携">🆕</button>
   <button id="btnExport" class="ghost">書出</button>
   <button id="btnImport" class="ghost">取込</button>
+  <button id="btnCloudPush" class="ghost" title="クラウドに保存">☁️ 保存</button>
+  <button id="btnCloudPull" class="ghost" title="クラウドから読込">☁️ 読込</button>
+  <button id="btnCloudKey" class="ghost" title="同期コードを確認・変更">🔑 同期</button>
   <button id="btnChangePw" class="ghost" title="パスワードを変更">🔑</button>
   <button id="btnRR" class="ghost" title="ルーティン行の設定">⚙ ルーティン</button>
   <span id="linkStat"></span>
@@ -1317,6 +1320,45 @@ $('btnLinkNew').onclick=async()=>{
     await save(); refreshLinkStat();
     alert('schedule.json を作成して連携したよ。OneDrive の同期フォルダに置けば共有できる。');
   }catch(e){}
+};
+
+// ---------- クラウド同期（Cloudflare Workers） ----------
+const CLOUD_WORKER = 'https://schedule-sync.shimabukuro-tomoki.workers.dev';
+
+function getSyncKey(){
+  let k = localStorage.getItem('cloudSyncKey');
+  if(!k){ k = Math.random().toString(36).slice(2,9)+Math.random().toString(36).slice(2,9); localStorage.setItem('cloudSyncKey',k); }
+  return k;
+}
+
+$('btnCloudPush').onclick = async()=>{
+  const key = getSyncKey();
+  try{
+    const blob = await Store.encrypt(state, sessionPwd);
+    const res = await fetch(`${CLOUD_WORKER}/?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blob)});
+    if(res.ok) alert(`☁️ クラウドに保存したよ！\n\n同期コード: ${key}\n\n他のデバイスで「☁️ 読込」→ このコードを入力してね。`);
+    else alert('保存に失敗しました。');
+  }catch(e){ alert('接続エラー: '+e.message); }
+};
+
+$('btnCloudPull').onclick = async()=>{
+  let key = localStorage.getItem('cloudSyncKey');
+  if(!key){ key = prompt('同期コードを入力してね（他デバイスの「☁️ 保存」で表示されたコード）:'); if(!key) return; key=key.trim(); localStorage.setItem('cloudSyncKey',key); }
+  try{
+    const res = await fetch(`${CLOUD_WORKER}/?key=${key}`);
+    if(res.status===404){ alert('データが見つからないよ。コードを確認してね。'); return; }
+    const blob = await res.json();
+    const cloudState = await Store.decrypt(blob, sessionPwd);
+    const merged = Store.newer(state, cloudState);
+    state = merged; await save(); render();
+    alert('☁️ クラウドから読み込んだよ！');
+  }catch(e){ alert('接続エラーまたはパスワードが違います: '+e.message); }
+};
+
+$('btnCloudKey').onclick = ()=>{
+  const cur = localStorage.getItem('cloudSyncKey') || '（未設定）';
+  const ans = prompt(`現在の同期コード: ${cur}\n\n変更する場合は新しいコードを入力（そのままEnterでキャンセル）:`);
+  if(ans && ans.trim()){ localStorage.setItem('cloudSyncKey', ans.trim()); alert('同期コードを変更したよ！'); }
 };
 
 // ---------- 起動：パスワード画面を表示 ----------
