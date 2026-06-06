@@ -1349,8 +1349,18 @@ $('btnCloudPull').onclick = async()=>{
     if(res.status===404){ alert('データが見つからないよ。コードを確認してね。'); return; }
     const blob = await res.json();
     const cloudState = await Store.decrypt(blob, sessionPwd);
-    const merged = Store.newer(state, cloudState);
-    state = merged; await save(); render();
+    // タスクはID単位で新しい方を採用（meta.updatedAtは自動保存で常に更新されるため使わない）
+    const lMap = Object.fromEntries(state.tasks.map(t=>[t.id,t]));
+    const cMap = Object.fromEntries(cloudState.tasks.map(t=>[t.id,t]));
+    const allIds = [...new Set([...Object.keys(lMap),...Object.keys(cMap)])];
+    const mergedTasks = allIds.map(id=>{
+      const l=lMap[id],c=cMap[id];
+      if(!c) return l; if(!l) return c;
+      return new Date(l.updatedAt||0)>=new Date(c.updatedAt||0)?l:c;
+    });
+    // ルーティン・メモ・祝日はクラウド優先（明示的に読込む操作なのでクラウドが正）
+    state = { ...cloudState, tasks: mergedTasks };
+    await save(); render();
     alert('☁️ クラウドから読み込んだよ！');
   }catch(e){ alert('接続エラーまたはパスワードが違います: '+e.message); }
 };
