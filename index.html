@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<title>スライド式スケジュール（モバイル統合版）</title>
+<title>スライド式スケジュール</title>
 <style>
 :root{
   --day-w: 46px;
@@ -63,7 +62,7 @@ button:hover{filter:brightness(1.08);}
 .task.dragging{opacity:.7;z-index:20;}
 .task .mk{cursor:pointer;font-weight:700;padding:0 2px;}
 .task.ms{color:var(--ms);font-weight:700;}
-/* 騾｣譌･繧ｿ繧ｹ繧ｯ・壹・繝ｼ繧ｫ繝ｼ繧貞推譌･蛻励↓驟咲ｽｮ縺・・・騾｣邨千ｷ壹〒縺､縺ｪ縺・*/
+/* 連日タスク：マーカーを各日列に配置し ＝ 連結線でつなぐ */
 .task .spanwrap{position:relative;display:inline-block;height:24px;vertical-align:top;}
 .task .spanwrap .mk{position:absolute;top:0;padding:0;}
 .task .spanwrap .lnk{position:absolute;top:9px;height:0;border-top:3px double currentColor;}
@@ -89,13 +88,13 @@ button.cancel{background:#888;}
 /* confirm */
 #cf .card{width:min(320px,90vw);text-align:center;}
 #cf p{font-size:14px;margin:6px 0 16px;}
-/* 豎守畑遒ｺ隱搾ｼ医さ繝ｳ繝代け繝茨ｼ・*/
+/* 汎用確認（コンパクト） */
 #ask .card{width:min(250px,80vw);padding:13px 15px;text-align:center;}
 #ask h2{font-size:14px;margin:0 0 6px;}
 #ask #askMsg{font-size:12.5px;margin:0 0 12px;color:#555;}
 #ask .actions{margin-top:0;}
 #ask .actions button{padding:5px 13px;font-size:13px;}
-/* 繝ｫ繝ｼ繝・ぅ繝ｳ陦後・繝弱・繝・*/
+/* ルーティン行・ノート */
 #routines{position:absolute;left:0;z-index:4;}
 #daynotes{position:absolute;left:0;z-index:4;border-top:2px solid #aaa;}
 .routine-row{position:relative;height:30px;border-bottom:1px solid rgba(0,0,0,.08);}
@@ -110,10 +109,10 @@ button.cancel{background:#888;}
 .ncell.sel{outline:2px solid #2176c2;background:rgba(33,118,194,.16);z-index:7;}
 .noteEditTa{position:absolute;font:inherit;font-size:11px;line-height:1.4;padding:2px 3px;border:1px solid #2176c2;z-index:10;background:rgba(255,255,200,.98);outline:none;resize:both;overflow:auto;white-space:pre;}
 .ncell-grey{color:#666;}
-/* 繝ｫ繝ｼ繝・ぅ繝ｳ險ｭ螳壹Δ繝ｼ繝繝ｫ */
+/* ルーティン設定モーダル */
 #rrList{max-height:300px;overflow-y:auto;}
 .rr-list-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;margin-bottom:4px;}
-/* 繝代せ繝ｯ繝ｼ繝臥判髱｢ */
+/* パスワード画面 */
 .pw-screen{position:fixed;inset:0;background:#1f3b57;display:flex;align-items:center;justify-content:center;z-index:100;}
 .pw-card{background:#fff;border-radius:14px;padding:32px 28px;width:min(300px,88vw);text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3);}
 .pw-logo{font-size:32px;margin-bottom:8px;}
@@ -129,22 +128,21 @@ button.cancel{background:#888;}
 </style>
 </head>
 <body>
-
 <header class="bar">
-  <h1>繧ｹ繝ｩ繧､繝牙ｼ上せ繧ｱ繧ｸ繝･繝ｼ繝ｫ</h1>
-  <span class="legend"><span>笆莠亥ｮ・/span><span>笆｡遒ｺ螳・/span><span>笘・・繧､繝ｫ繧ｹ繝医・繝ｳ</span><span>・晞｣譌･</span></span>
+  <h1>スライド式スケジュール</h1>
+  <span class="legend"><span>■予定</span><span>□確定</span><span>★マイルストーン</span><span>＝連日</span></span>
   <span class="sp"></span>
-  <button id="btnPrevM" class="ghost" title="蜑阪・譛医∈">笳</button>
-  <select id="monthJump" class="mjump" title="譛医∈繧ｸ繝｣繝ｳ繝・></select>
-  <button id="btnNextM" class="ghost" title="谺｡縺ｮ譛医∈">笆ｶ</button>
-  <button id="btnToday" class="ghost">莉頑律縺ｸ</button>
-  <button id="btnAdd">・・霑ｽ蜉</button>
-  <button id="btnLink" class="ghost" title="蜷梧悄繝輔か繝ｫ繝縺ｮ schedule.json 縺ｨ騾｣謳ｺ">迫 騾｣謳ｺ</button>
-  <button id="btnLinkNew" class="ghost" title="譁ｰ隕・schedule.json 繧剃ｽ懈・縺励※騾｣謳ｺ">・</button>
-  <button id="btnExport" class="ghost">譖ｸ蜃ｺ</button>
-  <button id="btnImport" class="ghost">蜿冶ｾｼ</button>
-  <button id="btnChangePw" class="ghost" title="繝代せ繝ｯ繝ｼ繝峨ｒ螟画峩">泊</button>
-  <button id="btnRR" class="ghost" title="繝ｫ繝ｼ繝・ぅ繝ｳ陦後・險ｭ螳・>笞・繝ｫ繝ｼ繝・ぅ繝ｳ</button>
+  <button id="btnPrevM" class="ghost" title="前の月へ">◀</button>
+  <select id="monthJump" class="mjump" title="月へジャンプ"></select>
+  <button id="btnNextM" class="ghost" title="次の月へ">▶</button>
+  <button id="btnToday" class="ghost">今日へ</button>
+  <button id="btnAdd">＋ 追加</button>
+  <button id="btnLink" class="ghost" title="同期フォルダの schedule.json と連携">🔗 連携</button>
+  <button id="btnLinkNew" class="ghost" title="新規 schedule.json を作成して連携">🆕</button>
+  <button id="btnExport" class="ghost">書出</button>
+  <button id="btnImport" class="ghost">取込</button>
+  <button id="btnChangePw" class="ghost" title="パスワードを変更">🔑</button>
+  <button id="btnRR" class="ghost" title="ルーティン行の設定">⚙ ルーティン</button>
   <span id="linkStat"></span>
   <input id="file" type="file" accept="application/json" hidden>
 </header>
@@ -160,175 +158,177 @@ button.cancel{background:#888;}
   </div>
 </div>
 
-<!-- 霑ｽ蜉繝ｻ邱ｨ髮・-->
+<!-- 追加・編集 -->
 <div id="ov" class="ov">
   <div class="card">
-    <h2 id="mTitle">繧ｿ繧ｹ繧ｯ繧定ｿｽ蜉</h2>
+    <h2 id="mTitle">タスクを追加</h2>
     <div class="fld">
-      <label>遞ｮ蛻･</label>
+      <label>種別</label>
       <div class="seg" id="segType">
-        <button data-t="plan">笆 莠亥ｮ・/button>
-        <button data-t="fix">笆｡ 遒ｺ螳・/button>
-        <button data-t="ms">笘・繝槭う繝ｫ繧ｹ繝医・繝ｳ</button>
+        <button data-t="plan">■ 予定</button>
+        <button data-t="fix">□ 確定</button>
+        <button data-t="ms">★ マイルストーン</button>
       </div>
     </div>
     <div class="fld">
-      <label>繧ｿ繧､繝医Ν <span style="color:#c62828">*</span></label>
-      <input id="fTitle" placeholder="萓具ｼ吋R莨夊ｭｰ">
+      <label>タイトル <span style="color:#c62828">*</span></label>
+      <input id="fTitle" placeholder="例）DR会議">
     </div>
     <div class="row2">
-      <div class="fld"><label>髢句ｧ区律</label><input id="fStart" type="date"></div>
-      <div class="fld"><label>邨ゆｺ・律・磯｣譌･縺ｮ縺ｿ・・/label><input id="fEnd" type="date"></div>
+      <div class="fld"><label>開始日</label><input id="fStart" type="date"></div>
+      <div class="fld"><label>終了日（連日のみ）</label><input id="fEnd" type="date"></div>
     </div>
-    <div class="fld"><label>陦鯉ｼ医Ξ繝ｼ繝ｳ・・/label><input id="fLane" type="number" min="0" value="0"></div>
+    <div class="fld"><label>行（レーン）</label><input id="fLane" type="number" min="0" value="0"></div>
     <hr style="border:none;border-top:1px solid #eee;margin:4px 0 10px">
-    <div style="font-size:12px;color:#888;margin-bottom:8px">繧ｪ繝励す繝ｧ繝ｳ・育┌縺代ｌ縺ｰ遨ｺ谺・〒OK・上ち繧､繝医Ν縺ｮ縺ｿ陦ｨ遉ｺ・・/div>
+    <div style="font-size:12px;color:#888;margin-bottom:8px">オプション（無ければ空欄でOK／タイトルのみ表示）</div>
     <div class="row2">
-      <div class="fld"><label>譎る俣・・・・/label><input id="fTime" placeholder="18:00"></div>
-      <div class="fld"><label>蝣ｴ謇・・n・・/label><input id="fPlace" placeholder="讓ｪ豬憺ｧ・></div>
+      <div class="fld"><label>時間（@）</label><input id="fTime" placeholder="18:00"></div>
+      <div class="fld"><label>場所（in）</label><input id="fPlace" placeholder="横浜駅"></div>
     </div>
-    <div class="fld"><label>莠ｺ・・ith・・/label><input id="fWho" placeholder="逕ｰ荳ｭ, 驤ｴ譛ｨ"></div>
+    <div class="fld"><label>人（with）</label><input id="fWho" placeholder="田中, 鈴木"></div>
     <div class="actions">
-      <button id="btnDelete" class="danger" style="display:none">蜑企勁</button>
+      <button id="btnDelete" class="danger" style="display:none">削除</button>
       <span class="sp"></span>
-      <button id="btnCancel" class="cancel">繧ｭ繝｣繝ｳ繧ｻ繝ｫ</button>
-      <button id="btnSave">菫晏ｭ・/button>
+      <button id="btnCancel" class="cancel">キャンセル</button>
+      <button id="btnSave">保存</button>
     </div>
   </div>
 </div>
 
-<!-- 遒ｺ螳夂｢ｺ隱・-->
+<!-- 確定確認 -->
 <div id="cf" class="ov">
   <div class="card">
-    <h2>遒ｺ螳壹＠縺ｾ縺吶°・・/h2>
+    <h2>確定しますか？</h2>
     <p id="cfMsg"></p>
     <div class="actions">
       <span class="sp"></span>
-      <button id="cfNo" class="cancel">縺・＞縺・/button>
-      <button id="cfYes">縺ｯ縺・/button>
+      <button id="cfNo" class="cancel">いいえ</button>
+      <button id="cfYes">はい</button>
     </div>
   </div>
 </div>
 
-<!-- 豎守畑 遒ｺ隱阪ム繧､繧｢繝ｭ繧ｰ -->
+<!-- 汎用 確認ダイアログ -->
 <div id="ask" class="ov">
   <div class="card">
-    <h2 id="askTitle">遒ｺ隱・/h2>
+    <h2 id="askTitle">確認</h2>
     <p id="askMsg"></p>
     <div class="actions">
       <span class="sp"></span>
-      <button id="askNo" class="cancel">縺・＞縺・/button>
-      <button id="askYes" class="danger">縺ｯ縺・/button>
+      <button id="askNo" class="cancel">いいえ</button>
+      <button id="askYes" class="danger">はい</button>
     </div>
   </div>
 </div>
 
-<!-- 繝ｫ繝ｼ繝・ぅ繝ｳ陦後Μ繧ｹ繝郁ｨｭ螳・-->
+<!-- ルーティン行リスト設定 -->
 <div id="rrOv" class="ov">
   <div class="card">
-    <h2>繝ｫ繝ｼ繝・ぅ繝ｳ陦後・險ｭ螳・/h2>
+    <h2>ルーティン行の設定</h2>
     <div id="rrList"></div>
-    <button id="rrAddBtn" style="margin-top:10px;width:100%">・・陦後ｒ霑ｽ蜉</button>
+    <button id="rrAddBtn" style="margin-top:10px;width:100%">＋ 行を追加</button>
     <div class="actions" style="margin-top:10px">
       <span class="sp"></span>
-      <button id="rrClose" class="cancel">髢峨§繧・/button>
+      <button id="rrClose" class="cancel">閉じる</button>
     </div>
   </div>
 </div>
 
-<!-- 繝ｫ繝ｼ繝・ぅ繝ｳ陦・邱ｨ髮・-->
+<!-- ルーティン行 編集 -->
 <div id="rrEditOv" class="ov">
   <div class="card">
-    <h2 id="rrEditTitle">繝ｫ繝ｼ繝・ぅ繝ｳ陦後ｒ霑ｽ蜉</h2>
-    <div class="fld"><label>陦悟錐</label><input id="rrFLabel" placeholder="萓具ｼ壹ず繝縲・・"></div>
+    <h2 id="rrEditTitle">ルーティン行を追加</h2>
+    <div class="fld"><label>行名</label><input id="rrFLabel" placeholder="例：ジム、酒"></div>
     <div class="fld">
-      <label>閭梧勹濶ｲ</label>
+      <label>背景色</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="rrFColor" type="color" value="#fff9c4" style="width:48px;height:34px;border:1px solid #ccc;border-radius:6px;padding:2px;cursor:pointer">
         <span id="rrFColorHex" style="font-size:12px;color:#666">#fff9c4</span>
       </div>
     </div>
     <div class="fld">
-      <label>繝槭・繧ｫ繝ｼ・医き繝ｳ繝槫玄蛻・ｊ縺ｧ隍・焚險ｭ螳壼庄・・/label>
-      <input id="rrFMarkers" placeholder="萓・ 繧ｸ縲縺ｾ縺溘・縲MH,MY">
-      <span style="font-size:11px;color:#888;margin-top:3px">繧ｯ繝ｪ繝・け縺吶ｋ縺溘・縺ｫ鬆・分縺ｫ蛻・崛 竊・譛蠕後・谺｡縺ｯ遨ｺ逋ｽ縺ｫ謌ｻ繧・/span>
+      <label>マーカー（カンマ区切りで複数設定可）</label>
+      <input id="rrFMarkers" placeholder="例: ジ　または　MH,MY">
+      <span style="font-size:11px;color:#888;margin-top:3px">クリックするたびに順番に切替 → 最後の次は空白に戻る</span>
     </div>
     <div class="actions">
-      <button id="rrFDelete" class="danger" style="display:none">蜑企勁</button>
+      <button id="rrFDelete" class="danger" style="display:none">削除</button>
       <span class="sp"></span>
-      <button id="rrFCancel" class="cancel">繧ｭ繝｣繝ｳ繧ｻ繝ｫ</button>
-      <button id="rrFSave">菫晏ｭ・/button>
+      <button id="rrFCancel" class="cancel">キャンセル</button>
+      <button id="rrFSave">保存</button>
     </div>
   </div>
 </div>
 
-<!-- 繝代せ繝ｯ繝ｼ繝臥判髱｢・郁ｵｷ蜍墓凾繧ｪ繝ｼ繝舌・繝ｬ繧､・・-->
+<!-- パスワード画面（起動時オーバーレイ） -->
 <div id="pwScreen" class="pw-screen">
   <div class="pw-card">
-    <div class="pw-logo">套</div>
-    <h2 id="pwScreenTitle">繝代せ繝ｯ繝ｼ繝峨ｒ蜈･蜉・/h2>
+    <div class="pw-logo">📅</div>
+    <h2 id="pwScreenTitle">パスワードを入力</h2>
     <p id="pwScreenSub" class="pw-sub"></p>
 
-    <!-- 繝ｭ繧ｰ繧､繝ｳ -->
+    <!-- ログイン -->
     <div id="pwLogin">
       <div class="pw-fld">
         <input id="pwInput" type="password" maxlength="4" inputmode="numeric"
-               pattern="[0-9]*" placeholder="窶｢窶｢窶｢窶｢" class="pw-input" autocomplete="current-password">
+               pattern="[0-9]*" placeholder="••••" class="pw-input" autocomplete="current-password">
       </div>
       <p id="pwErr" class="pw-err"></p>
-      <button id="pwSubmit" class="pw-btn">髢九￥</button>
+      <button id="pwSubmit" class="pw-btn">開く</button>
     </div>
 
-    <!-- 逋ｻ骭ｲ -->
+    <!-- 登録 -->
     <div id="pwRegister" style="display:none">
       <div class="pw-fld">
-        <label class="pw-label">譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝会ｼ・譯・ｼ・/label>
+        <label class="pw-label">新しいパスワード（4桁）</label>
         <input id="pwNew1" type="password" maxlength="4" inputmode="numeric"
-               pattern="[0-9]*" placeholder="窶｢窶｢窶｢窶｢" class="pw-input" autocomplete="new-password">
+               pattern="[0-9]*" placeholder="••••" class="pw-input" autocomplete="new-password">
       </div>
       <div class="pw-fld">
-        <label class="pw-label">遒ｺ隱榊・蜉・/label>
+        <label class="pw-label">確認入力</label>
         <input id="pwNew2" type="password" maxlength="4" inputmode="numeric"
-               pattern="[0-9]*" placeholder="窶｢窶｢窶｢窶｢" class="pw-input" autocomplete="new-password">
+               pattern="[0-9]*" placeholder="••••" class="pw-input" autocomplete="new-password">
       </div>
       <p id="pwRegErr" class="pw-err"></p>
-      <button id="pwRegSubmit" class="pw-btn">險ｭ螳壹＠縺ｦ髢九￥</button>
+      <button id="pwRegSubmit" class="pw-btn">設定して開く</button>
     </div>
   </div>
 </div>
 
-<!-- 繝代せ繝ｯ繝ｼ繝牙､画峩繝｢繝ｼ繝繝ｫ -->
+<!-- パスワード変更モーダル -->
 <div id="pwChangeOv" class="ov">
   <div class="card">
-    <h2>繝代せ繝ｯ繝ｼ繝峨ｒ螟画峩</h2>
+    <h2>パスワードを変更</h2>
     <div class="fld">
-      <label>迴ｾ蝨ｨ縺ｮ繝代せ繝ｯ繝ｼ繝・/label>
-      <input id="pwCurr" type="password" maxlength="4" inputmode="numeric" placeholder="窶｢窶｢窶｢窶｢" style="letter-spacing:6px;text-align:center;font-size:18px">
+      <label>現在のパスワード</label>
+      <input id="pwCurr" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="letter-spacing:6px;text-align:center;font-size:18px">
     </div>
     <div class="fld">
-      <label>譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝会ｼ・譯・ｼ・/label>
-      <input id="pwChNew1" type="password" maxlength="4" inputmode="numeric" placeholder="窶｢窶｢窶｢窶｢" style="letter-spacing:6px;text-align:center;font-size:18px">
+      <label>新しいパスワード（4桁）</label>
+      <input id="pwChNew1" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="letter-spacing:6px;text-align:center;font-size:18px">
     </div>
     <div class="fld">
-      <label>遒ｺ隱榊・蜉・/label>
-      <input id="pwChNew2" type="password" maxlength="4" inputmode="numeric" placeholder="窶｢窶｢窶｢窶｢" style="letter-spacing:6px;text-align:center;font-size:18px">
+      <label>確認入力</label>
+      <input id="pwChNew2" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="letter-spacing:6px;text-align:center;font-size:18px">
     </div>
     <p id="pwChErr" class="pw-err" style="margin:0 0 8px"></p>
     <div class="actions">
       <span class="sp"></span>
-      <button id="pwChCancel" class="cancel">繧ｭ繝｣繝ｳ繧ｻ繝ｫ</button>
-      <button id="pwChSave">螟画峩</button>
+      <button id="pwChCancel" class="cancel">キャンセル</button>
+      <button id="pwChSave">変更</button>
     </div>
   </div>
 </div>
 
-
-
-
 <script>
 /* =========================================================================
- * store.js 窶・菫晏ｭ倥い繝繝励ち・・螻､繝｢繝・Ν・・ *   - 隨ｬ1螻､: localStorage・亥叉譎ゅ・鬮倬溘く繝｣繝・す繝･・・ *   - 隨ｬ2螻､: 蜷梧悄繝輔か繝ｫ繝荳翫・ schedule.json・域ｭ｣譛ｬ・洲ile System Access API・・ *
- * 繝・・繧ｿ縺ｯ AES-256-GCM + PBKDF2 縺ｧ證怜捷蛹悶＠縺ｦ菫晏ｭ倥・ * 繝代せ繝ｯ繝ｼ繝峨・繧ｻ繝・す繝ｧ繝ｳ荳ｭ縺ｮ縺ｿ JS 繝｡繝｢繝ｪ縺ｫ菫晄戟・域ｰｸ邯壻ｿ晏ｭ倥＠縺ｪ縺・ｼ峨・ * ========================================================================= */
+ * store.js — 保存アダプタ（2層モデル）
+ *   - 第1層: localStorage（即時・高速キャッシュ）
+ *   - 第2層: 同期フォルダ上の schedule.json（正本／File System Access API）
+ *
+ * データは AES-256-GCM + PBKDF2 で暗号化して保存。
+ * パスワードはセッション中のみ JS メモリに保持（永続保存しない）。
+ * ========================================================================= */
 const Store = (() => {
   const LS_KEY  = 'schedTimeline.v2';
   const OLD_KEY = 'schedTimeline.v1';
@@ -340,7 +340,7 @@ const Store = (() => {
   const supportsFS = (typeof window !== 'undefined') && ('showOpenFilePicker' in window);
   const nowISO = () => new Date().toISOString();
 
-  // ---- Base64 繝ｦ繝ｼ繝・ぅ繝ｪ繝・ぅ ----
+  // ---- Base64 ユーティリティ ----
   const b64enc = buf => {
     const bytes = new Uint8Array(buf); let s = '';
     for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
@@ -348,7 +348,7 @@ const Store = (() => {
   };
   const b64dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
-  // ---- 證怜捷蛹・AES-256-GCM + PBKDF2・・0荳・屓繧ｹ繝医Ξ繝・メ・・---
+  // ---- 暗号化 AES-256-GCM + PBKDF2（10万回ストレッチ）----
   async function deriveKey(password, salt) {
     const km = await crypto.subtle.importKey(
       'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']
@@ -382,7 +382,7 @@ const Store = (() => {
     return !!(raw && raw.encrypted === true);
   }
 
-  // ---- 繝・・繧ｿ繝｢繝・Ν / 繧ｹ繧ｭ繝ｼ繝樒ｧｻ陦・----
+  // ---- データモデル / スキーマ移行 ----
   function emptyState() {
     return { schemaVersion: 1, meta: { updatedAt: nowISO(), owner: '' }, tasks: [], holidays: [], routineRows: [], dayNotes: {} };
   }
@@ -419,7 +419,7 @@ const Store = (() => {
     return s;
   }
 
-  // ---- localStorage 螻､ ----
+  // ---- localStorage 層 ----
   function loadLocalRaw() {
     try { const j = JSON.parse(localStorage.getItem(LS_KEY)); if (j) return j; } catch(e) {}
     try { const o = JSON.parse(localStorage.getItem(OLD_KEY)); if (o) return o; } catch(e) {}
@@ -433,7 +433,7 @@ const Store = (() => {
     } catch(e) {}
   }
 
-  // ---- IndexedDB・医ヵ繧｡繧､繝ｫ繝上Φ繝峨Ν繧貞・隱ｭ霎ｼ蠕後ｂ菫晄戟縺吶ｋ縺溘ａ・・---
+  // ---- IndexedDB（ファイルハンドルを再読込後も保持するため）----
   function idb() {
     return new Promise((res, rej) => {
       const r = indexedDB.open(IDB_DB, 1);
@@ -458,13 +458,13 @@ const Store = (() => {
     });
   }
 
-  // ---- 繝輔ぃ繧､繝ｫ繝上Φ繝峨Ν / 讓ｩ髯・----
-  // 險ｱ蜿ｯ遒ｺ隱阪・縺ｿ・医ム繧､繧｢繝ｭ繧ｰ縺ｪ縺暦ｼ・ 襍ｷ蜍墓凾縺ｮ閾ｪ蜍募酔譛溽畑
+  // ---- ファイルハンドル / 権限 ----
+  // 許可確認のみ（ダイアログなし）- 起動時の自動同期用
   async function checkPermission(handle, mode) {
     if (!handle || !handle.queryPermission) return true;
     return (await handle.queryPermission({ mode })) === 'granted';
   }
-  // 險ｱ蜿ｯ繧呈・遉ｺ逧・↓繝ｪ繧ｯ繧ｨ繧ｹ繝茨ｼ医ム繧､繧｢繝ｭ繧ｰ縺ゅｊ・・ 繝ｦ繝ｼ繧ｶ繝ｼ謫堺ｽ懈凾縺ｮ縺ｿ蜻ｼ縺ｶ
+  // 許可を明示的にリクエスト（ダイアログあり）- ユーザー操作時のみ呼ぶ
   async function ensurePermission(handle, mode) {
     if (!handle || !handle.queryPermission) return true;
     const opts = { mode };
@@ -505,13 +505,14 @@ const Store = (() => {
     }
     return migrate(raw);
   }
-  // 繝ｦ繝ｼ繧ｶ繝ｼ謫堺ｽ懈凾・芋沐励・繧ｿ繝ｳ遲会ｼ会ｼ夊ｨｱ蜿ｯ繝繧､繧｢繝ｭ繧ｰ繧貞・縺励※繧０K
+  // ユーザー操作時（🔗ボタン等）：許可ダイアログを出してもOK
   async function readFile(password) {
     if (!fileHandle) return null;
     if (!await ensurePermission(fileHandle, 'read')) return null;
     try { return await _doReadFile(password); } catch(e) { return null; }
   }
-  // 襍ｷ蜍墓凾縺ｮ閾ｪ蜍募酔譛滂ｼ夊ｨｱ蜿ｯ貂医∩縺ｮ蝣ｴ蜷医・縺ｿ螳溯｡鯉ｼ医ム繧､繧｢繝ｭ繧ｰ縺ｪ縺暦ｼ・  async function readFileIfPermitted(password) {
+  // 起動時の自動同期：許可済みの場合のみ実行（ダイアログなし）
+  async function readFileIfPermitted(password) {
     if (!fileHandle) return null;
     if (!await checkPermission(fileHandle, 'read')) return null;
     try { return await _doReadFile(password); } catch(e) { return null; }
@@ -524,20 +525,22 @@ const Store = (() => {
     await w.close();
     return true;
   }
-  // 繝ｦ繝ｼ繧ｶ繝ｼ謫堺ｽ懈凾・夊ｨｱ蜿ｯ繝繧､繧｢繝ｭ繧ｰ繧貞・縺励※繧０K
+  // ユーザー操作時：許可ダイアログを出してもOK
   async function writeFile(state, password) {
     if (!fileHandle) return false;
     if (!await ensurePermission(fileHandle, 'readwrite')) return false;
     return _doWriteFile(state, password);
   }
-  // 閾ｪ蜍穂ｿ晏ｭ俶凾・夊ｨｱ蜿ｯ貂医∩縺ｮ蝣ｴ蜷医・縺ｿ螳溯｡鯉ｼ医ム繧､繧｢繝ｭ繧ｰ縺ｪ縺暦ｼ・  async function writeFileIfPermitted(state, password) {
+  // 自動保存時：許可済みの場合のみ実行（ダイアログなし）
+  async function writeFileIfPermitted(state, password) {
     if (!fileHandle) return false;
     if (!await checkPermission(fileHandle, 'readwrite')) return false;
     return _doWriteFile(state, password);
   }
 
-  // ---- 遶ｶ蜷郁ｧ｣豎ｺ・嗄eta.updatedAt 縺梧眠縺励＞譁ｹ繧呈治逕ｨ ----
-  // routineRows繝ｻdayNotes 縺ｯ譁ｰ縺励＞譁ｹ縺檎ｩｺ縺ｧ繧ょ商縺・婿縺ｮ繝・・繧ｿ繧剃ｿ晄戟縺吶ｋ・医ヵ繧｡繧､繝ｫ髱槫ｯｾ蠢懈凾縺ｮ荳頑嶌縺埼亟豁｢・・  function newer(a, b) {
+  // ---- 競合解決：meta.updatedAt が新しい方を採用 ----
+  // routineRows・dayNotes は新しい方が空でも古い方のデータを保持する（ファイル非対応時の上書き防止）
+  function newer(a, b) {
     if (!a) return b; if (!b) return a;
     const ta = new Date((a.meta && a.meta.updatedAt) || 0).getTime();
     const tb = new Date((b.meta && b.meta.updatedAt) || 0).getTime();
@@ -564,11 +567,13 @@ const Store = (() => {
 </script>
 <script>
 /* =========================================================================
- * app.js 窶・繧ｹ繝ｩ繧､繝牙ｼ上せ繧ｱ繧ｸ繝･繝ｼ繝ｫ 譛ｬ菴薙Ο繧ｸ繝・け
- *   謠冗判繝ｻ謫堺ｽ懶ｼ医せ繧ｯ繝ｭ繝ｼ繝ｫ / 騾｣譌･驕ｸ謚・/ D&D / 霑ｽ蜉繝ｻ邱ｨ髮・/ 譛医ず繝｣繝ｳ繝暦ｼ・ *   繝ｫ繝ｼ繝・ぅ繝ｳ陦後・繝輔Μ繝ｼ繧ｳ繝｡繝ｳ繝域ｬ・ *   菫晏ｭ倥・ store.js・・tore・峨↓蟋碑ｭｲ・哂ES-GCM 證怜捷蛹・+ localStorage / schedule.json
+ * app.js — スライド式スケジュール 本体ロジック
+ *   描画・操作（スクロール / 連日選択 / D&D / 追加・編集 / 月ジャンプ）
+ *   ルーティン行・フリーコメント欄
+ *   保存は store.js（Store）に委譲：AES-GCM 暗号化 + localStorage / schedule.json
  * ========================================================================= */
 const DAY_W=46, LANE_H=30, HEAD_H=70, LABEL_W=52, NOTE_H=100;
-const WD=['譌･','譛・,'轣ｫ','豌ｴ','譛ｨ','驥・,'蝨・];
+const WD=['日','月','火','水','木','金','土'];
 const RANGE_START='2026-01-01', RANGE_END='2026-12-31';
 
 const $=id=>document.getElementById(id);
@@ -580,12 +585,13 @@ const days=[];
 for(let d=parse(RANGE_START); d<=parse(RANGE_END); d.setDate(d.getDate()+1)) days.push(fmt(d));
 const idxOf=s=>days.indexOf(s);
 
-// 譛医・蛹ｺ蛻・ｊ・域怦繧ｸ繝｣繝ｳ繝礼畑・・const months=[];
+// 月の区切り（月ジャンプ用）
+const months=[];
 days.forEach((s,i)=>{const d=parse(s);const key=d.getFullYear()+'-'+d.getMonth();
   if(!months.length||months[months.length-1].key!==key)
-    months.push({key,label:`${d.getFullYear()}蟷ｴ${d.getMonth()+1}譛・,idx:i});});
+    months.push({key,label:`${d.getFullYear()}年${d.getMonth()+1}月`,idx:i});});
 
-// ---------- state / 繧ｻ繝・す繝ｧ繝ｳ繝代せ繝ｯ繝ｼ繝・----------
+// ---------- state / セッションパスワード ----------
 let state = Store.emptyState();
 let sessionPwd = null;
 
@@ -600,20 +606,21 @@ async function save(){
 }
 
 function seed(){return[
-  {id:id(),type:'plan',title:'DR莨夊ｭｰ',start:'2026-06-08',end:'',lane:0,updatedAt:Store.nowISO()},
-  {id:id(),type:'plan',title:'AI螳壻ｾ句ｱ蜻贋ｼ・,start:'2026-06-09',end:'',lane:1,updatedAt:Store.nowISO()},
-  {id:id(),type:'fix', title:'譬・惠蟾･蝣ｴ蜃ｺ蠑ｵ',start:'2026-06-09',end:'2026-06-11',lane:2,updatedAt:Store.nowISO()},
-  {id:id(),type:'fix', title:'鬟滉ｺ倶ｼ・,start:'2026-06-09',end:'',lane:4,time:'18:00',place:'讓ｪ豬憺ｧ・,updatedAt:Store.nowISO()},
-  {id:id(),type:'ms',  title:'譛ｬ逡ｪ遶九■荳翫￡',start:'2026-06-24',end:'',lane:0,updatedAt:Store.nowISO()},
+  {id:id(),type:'plan',title:'DR会議',start:'2026-06-08',end:'',lane:0,updatedAt:Store.nowISO()},
+  {id:id(),type:'plan',title:'AI定例報告会',start:'2026-06-09',end:'',lane:1,updatedAt:Store.nowISO()},
+  {id:id(),type:'fix', title:'栃木工場出張',start:'2026-06-09',end:'2026-06-11',lane:2,updatedAt:Store.nowISO()},
+  {id:id(),type:'fix', title:'食事会',start:'2026-06-09',end:'',lane:4,time:'18:00',place:'横浜駅',updatedAt:Store.nowISO()},
+  {id:id(),type:'ms',  title:'本番立ち上げ',start:'2026-06-24',end:'',lane:0,updatedAt:Store.nowISO()},
 ];}
 
 const isWeekend=s=>{const w=parse(s).getDay();return w===0||w===6;};
 const isGrey=s=>isWeekend(s)||state.holidays.includes(s);
-const markerOf=t=>t==='plan'?'笆':t==='fix'?'笆｡':'笘・;
+const markerOf=t=>t==='plan'?'■':t==='fix'?'□':'★';
 function laneCount(){let m=0;state.tasks.forEach(t=>m=Math.max(m,t.lane||0));return Math.max(m+3,14);}
 function durationDays(t){const si=idxOf(t.start),ei=t.end?idxOf(t.end):-1;return (t.end&&ei>si)?(ei-si+1):1;}
 
-// 閭梧勹濶ｲ縺ｫ蟇ｾ縺吶ｋ繝・く繧ｹ繝郁牡・磯ｻ・逋ｽ・・function contrastColor(hex){
+// 背景色に対するテキスト色（黒/白）
+function contrastColor(hex){
   if(!hex||hex[0]!=='#')return'#333';
   const r=parseInt(hex.slice(1,3),16)||0,g=parseInt(hex.slice(3,5),16)||0,b=parseInt(hex.slice(5,7),16)||0;
   return(0.299*r+0.587*g+0.114*b)>140?'#333':'#fff';
@@ -621,7 +628,8 @@ function durationDays(t){const si=idxOf(t.start),ei=t.end?idxOf(t.end):-1;return
 
 let selectedId=null;
 let selectedNote=null;
-let selectedRR=null;  // {rid,date} 繝ｫ繝ｼ繝・ぅ繝ｳ繧ｻ繝ｫ驕ｸ謚・
+let selectedRR=null;  // {rid,date} ルーティンセル選択
+
 function render(){
   const colbg=$('colbg'),head=$('head'),lanes=$('lanes'),grid=$('grid');
   const LANES=laneCount(), lanesH=LANES*LANE_H, fullH=HEAD_H+lanesH;
@@ -647,7 +655,7 @@ function render(){
   while(i<days.length){
     const d=parse(days[i]),y=d.getFullYear(),mo=d.getMonth();
     let span=0; while(i+span<days.length){const dd=parse(days[i+span]); if(dd.getFullYear()!==y||dd.getMonth()!==mo)break; span++;}
-    h+=`<div class="mcell" style="left:${i*DAY_W}px;width:${span*DAY_W}px">${y}蟷ｴ${mo+1}譛・/div>`;
+    h+=`<div class="mcell" style="left:${i*DAY_W}px;width:${span*DAY_W}px">${y}年${mo+1}月</div>`;
     i+=span;
   }
   let drow='',wrow='';
@@ -676,7 +684,7 @@ function render(){
 }
 
 function labelHTML(t){
-  if(t.type==='ms') return `笘・{escapeHTML(t.title)}`;
+  if(t.type==='ms') return `★${escapeHTML(t.title)}`;
   const mk=markerOf(t.type);
   const ei=t.end?idxOf(t.end):-1, si=idxOf(t.start);
   if(t.end&&ei>si){
@@ -700,7 +708,7 @@ function optsText(t){
 }
 const escapeHTML=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-// 繧ｪ繝励す繝ｧ繝ｳ隗｣譫撰ｼ・@譎る俣 / in 蝣ｴ謇 / with 莠ｺ
+// オプション解析： @時間 / in 場所 / with 人
 function parseInline(raw){
   const out={title:'',time:'',place:'',who:''};
   let s=' '+raw.trim()+' ';
@@ -712,7 +720,7 @@ function parseInline(raw){
   return out;
 }
 
-// ---------- 繝ｫ繝ｼ繝・ぅ繝ｳ陦梧緒逕ｻ ----------
+// ---------- ルーティン行描画 ----------
 function renderRoutines(){
   const el=$('routines'); if(!el)return;
   const rows=state.routineRows||[];
@@ -738,12 +746,13 @@ function renderRoutines(){
   });
   el.innerHTML=html;
 }
-// onclick螻樊ｧ縺九ｉ蜻ｼ縺ｶ繧ｰ繝ｭ繝ｼ繝舌Ν髢｢謨ｰ・域怙繧ゅす繝ｳ繝励Ν縺ｧ遒ｺ螳溘↑繧｢繝励Ο繝ｼ繝・ｼ・function rrCellClick(rid,date){
+// onclick属性から呼ぶグローバル関数（最もシンプルで確実なアプローチ）
+function rrCellClick(rid,date){
   const row=(state.routineRows||[]).find(r=>r.id===rid);
-  if(!row){ alert('繧ｨ繝ｩ繝ｼ: 陦後′隕九▽縺九ｊ縺ｾ縺帙ｓ rid='+rid); return; }
+  if(!row){ alert('エラー: 行が見つかりません rid='+rid); return; }
   const markers=row.markers||[];
   if(!markers.length){
-    alert('繝槭・繧ｫ繝ｼ縺瑚ｨｭ螳壹＆繧後※縺・∪縺帙ｓ・―n笞・繝ｫ繝ｼ繝・ぅ繝ｳ繝懊ち繝ｳ縺九ｉ陦後ｒ邱ｨ髮・＠縺ｦ繝槭・繧ｫ繝ｼ繧貞・蜉帙＠縺ｦ縺上□縺輔＞縲・n萓・ 繧ｸ縲縺ｾ縺溘・縲MH,MY');
+    alert('マーカーが設定されていません！\n⚙ ルーティンボタンから行を編集してマーカーを入力してください。\n例: ジ　または　MH,MY');
     return;
   }
   const cur=(row.cells&&row.cells[date])||'';
@@ -754,7 +763,7 @@ function renderRoutines(){
   save(); renderRoutines();
 }
 
-// ---------- 繝弱・繝域ｬ・緒逕ｻ ----------
+// ---------- ノート欄描画 ----------
 let noteInline=null;
 function renderNotes(){
   const dn=$('daynotes'); if(!dn)return;
@@ -765,9 +774,9 @@ function renderNotes(){
   dn.style.top=(fullH+routineH)+'px';
   dn.style.width=totalW+'px';
   dn.style.height=NOTE_H+'px';
-  if(noteInline)return; // textarea 邱ｨ髮・ｸｭ縺ｯ繧ｹ繧ｭ繝・・
+  if(noteInline)return; // textarea 編集中はスキップ
 
-  let html=`<div class="note-label">繝｡繝｢</div>`;
+  let html=`<div class="note-label">メモ</div>`;
   days.forEach((s,i)=>{
     const gc=isGrey(s)?' ncell-grey':'';
     const raw=(state.dayNotes||{})[s]||'';
@@ -803,7 +812,7 @@ function closeNoteEdit(){
   if(!noteInline)return; noteInline.remove(); noteInline=null; renderNotes();
 }
 
-// ---------- 繝代せ繝ｯ繝ｼ繝臥判髱｢ ----------
+// ---------- パスワード画面 ----------
 const pwScreen=$('pwScreen');
 
 function showPwScreen(mode, hasMigration){
@@ -811,17 +820,17 @@ function showPwScreen(mode, hasMigration){
   if(mode==='login'){
     $('pwLogin').style.display='';
     $('pwRegister').style.display='none';
-    $('pwScreenTitle').textContent='繝代せ繝ｯ繝ｼ繝峨ｒ蜈･蜉・;
+    $('pwScreenTitle').textContent='パスワードを入力';
     $('pwScreenSub').textContent='';
     $('pwInput').value=''; $('pwErr').textContent='';
     setTimeout(()=>$('pwInput').focus(), 50);
   } else {
     $('pwLogin').style.display='none';
     $('pwRegister').style.display='';
-    $('pwScreenTitle').textContent='繝代せ繝ｯ繝ｼ繝峨ｒ險ｭ螳・;
+    $('pwScreenTitle').textContent='パスワードを設定';
     $('pwScreenSub').textContent=hasMigration
-      ? '譌｢蟄倥・繝・・繧ｿ繧呈囓蜿ｷ蛹悶＠縺ｦ菫晁ｭｷ縺励∪縺・
-      : '4譯√・謨ｰ蟄励〒繝代せ繝ｯ繝ｼ繝峨ｒ險ｭ螳壹＠縺ｦ縺上□縺輔＞';
+      ? '既存のデータを暗号化して保護します'
+      : '4桁の数字でパスワードを設定してください';
     $('pwNew1').value=''; $('pwNew2').value=''; $('pwRegErr').textContent='';
     setTimeout(()=>$('pwNew1').focus(), 50);
   }
@@ -845,7 +854,7 @@ async function afterAuth(){
 
 $('pwSubmit').onclick=async()=>{
   const pwd=$('pwInput').value;
-  if(pwd.length!==4){ $('pwErr').textContent='4譯√〒蜈･蜉帙＠縺ｦ縺上□縺輔＞'; return; }
+  if(pwd.length!==4){ $('pwErr').textContent='4桁で入力してください'; return; }
   const raw=Store.loadLocalRaw();
   try{
     state=await Store.decrypt(raw, pwd);
@@ -853,7 +862,7 @@ $('pwSubmit').onclick=async()=>{
     hidePwScreen();
     await afterAuth();
   }catch(e){
-    $('pwErr').textContent='繝代せ繝ｯ繝ｼ繝峨′驕輔＞縺ｾ縺・;
+    $('pwErr').textContent='パスワードが違います';
     $('pwInput').value=''; $('pwInput').focus();
   }
 };
@@ -861,8 +870,8 @@ $('pwInput').addEventListener('keydown',e=>{ if(e.key==='Enter') $('pwSubmit').c
 
 $('pwRegSubmit').onclick=async()=>{
   const p1=$('pwNew1').value, p2=$('pwNew2').value;
-  if(p1.length!==4){ $('pwRegErr').textContent='4譯√〒蜈･蜉帙＠縺ｦ縺上□縺輔＞'; return; }
-  if(p1!==p2){ $('pwRegErr').textContent='繝代せ繝ｯ繝ｼ繝峨′荳閾ｴ縺励∪縺帙ｓ'; $('pwNew2').focus(); return; }
+  if(p1.length!==4){ $('pwRegErr').textContent='4桁で入力してください'; return; }
+  if(p1!==p2){ $('pwRegErr').textContent='パスワードが一致しません'; $('pwNew2').focus(); return; }
   sessionPwd=p1;
   await save();
   hidePwScreen();
@@ -882,13 +891,13 @@ $('pwChCancel').onclick=()=>pwChangeOv.classList.remove('show');
 pwChangeOv.addEventListener('click',e=>{ if(e.target===pwChangeOv) pwChangeOv.classList.remove('show'); });
 $('pwChSave').onclick=async()=>{
   const curr=$('pwCurr').value, n1=$('pwChNew1').value, n2=$('pwChNew2').value;
-  if(curr!==sessionPwd){ $('pwChErr').textContent='迴ｾ蝨ｨ縺ｮ繝代せ繝ｯ繝ｼ繝峨′驕輔＞縺ｾ縺・; $('pwCurr').focus(); return; }
-  if(n1.length!==4){ $('pwChErr').textContent='譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝峨ｒ4譯√〒蜈･蜉帙＠縺ｦ縺上□縺輔＞'; return; }
-  if(n1!==n2){ $('pwChErr').textContent='繝代せ繝ｯ繝ｼ繝峨′荳閾ｴ縺励∪縺帙ｓ'; $('pwChNew2').focus(); return; }
+  if(curr!==sessionPwd){ $('pwChErr').textContent='現在のパスワードが違います'; $('pwCurr').focus(); return; }
+  if(n1.length!==4){ $('pwChErr').textContent='新しいパスワードを4桁で入力してください'; return; }
+  if(n1!==n2){ $('pwChErr').textContent='パスワードが一致しません'; $('pwChNew2').focus(); return; }
   sessionPwd=n1;
   await save();
   pwChangeOv.classList.remove('show');
-  alert('繝代せ繝ｯ繝ｼ繝峨ｒ螟画峩縺励∪縺励◆・・);
+  alert('パスワードを変更しました！');
 };
 
 // ---------- scroll / select / inline / task-drag ----------
@@ -907,7 +916,8 @@ function cellFromEvent(e){
 }
 
 scroll.addEventListener('pointerdown',e=>{
-  // 繝ｫ繝ｼ繝・ぅ繝ｳ陦後・繝｡繝｢縺ｮ繧ｻ繝ｫ縺ｯ險倬鹸縺縺代＠縺ｦ縲√せ繧ｯ繝ｭ繝ｼ繝ｫ蜃ｦ逅・↓蜷域ｵ・ｼ医ラ繝ｩ繝・げ遘ｻ蜍募庄繝ｻ繝繝悶Ν繧ｯ繝ｪ繝・け縺ｧ蜈･蜉幢ｼ・  const rcell=e.target.closest('.rcell');
+  // ルーティン行・メモのセルは記録だけして、スクロール処理に合流（ドラッグ移動可・ダブルクリックで入力）
+  const rcell=e.target.closest('.rcell');
   const ncell=e.target.closest('.ncell');
   pendingCell = rcell ? {kind:'rr',cell:rcell}
               : ncell ? {kind:'note',cell:ncell}
@@ -998,7 +1008,8 @@ window.addEventListener('pointerup',e=>{
     scroll.classList.remove('drag');
     if(!moved){
       if(pendingCell){
-        // 繝ｫ繝ｼ繝・ぅ繝ｳ/繝｡繝｢・壹ム繝悶Ν繧ｯ繝ｪ繝・け縺ｧ蜈･蜉帷匱蜍・        const c=pendingCell.cell, now=Date.now();
+        // ルーティン/メモ：ダブルクリックで入力発動
+        const c=pendingCell.cell, now=Date.now();
         const cid=pendingCell.kind==='rr'
           ? 'rr:'+c.dataset.rid+':'+c.dataset.date
           : 'note:'+c.dataset.date;
@@ -1008,7 +1019,8 @@ window.addEventListener('pointerup',e=>{
           else openNoteEdit(c.dataset.date,parseInt(c.dataset.left));
         }else{
           lastTapId=cid; lastTapTime=now;
-          // 1蝗樒岼繧ｿ繝・・・夐∈謚樒憾諷九↓・医ち繧ｹ繧ｯ/繝｡繝｢/繝ｫ繝ｼ繝・ぅ繝ｳ縺ｯ謗剃ｻ悶．elete繧ｭ繝ｼ縺ｧ蜑企勁蜿ｯ閭ｽ・・          if(pendingCell.kind==='note'){
+          // 1回目タップ：選択状態に（タスク/メモ/ルーティンは排他、Deleteキーで削除可能）
+          if(pendingCell.kind==='note'){
             selectedId=null; selectedRR=null; selectedNote=c.dataset.date; render();
           }else if(pendingCell.kind==='rr'){
             selectedId=null; selectedNote=null;
@@ -1036,12 +1048,13 @@ function drawSel(){
 }
 function clearSel(){ if(selBox){selBox.remove();selBox=null;} }
 
-// 繧､繝ｳ繝ｩ繧､繝ｳ蜈･蜉・let inlineEl=null;
+// インライン入力
+let inlineEl=null;
 function openInline(diStart,diEnd,lane){
   removeInline();
   const inp=document.createElement('input');
   inp.className='inlineEdit';
-  inp.placeholder='繧ｿ繧､繝医Ν窶ｦ (@譎る俣 in 蝣ｴ謇 with 莠ｺ)';
+  inp.placeholder='タイトル… (@時間 in 場所 with 人)';
   inp.style.left=(diStart*DAY_W+2)+'px';
   inp.style.top=(lane*LANE_H+3)+'px';
   inp.style.width=Math.max((diEnd-diStart+1)*DAY_W,160)+'px';
@@ -1070,14 +1083,14 @@ function commitInline(){
 }
 function removeInline(){ if(inlineEl){inlineEl.remove();inlineEl=null;} }
 
-// ---------- 遒ｺ螳夂｢ｺ隱・----------
+// ---------- 確定確認 ----------
 const cf=$('cf'); let cfTask=null;
-function askConfirm(t){ cfTask=t; $('cfMsg').textContent='縲・+t.title+'縲阪ｒ遒ｺ螳壹ち繧ｹ繧ｯ縺ｫ縺励∪縺吶・; cf.classList.add('show'); }
+function askConfirm(t){ cfTask=t; $('cfMsg').textContent='「'+t.title+'」を確定タスクにします。'; cf.classList.add('show'); }
 $('cfYes').onclick=()=>{ if(cfTask){cfTask.type='fix';stamp(cfTask);save();render();} cf.classList.remove('show'); cfTask=null; };
 $('cfNo').onclick=()=>{ cf.classList.remove('show'); cfTask=null; };
 cf.addEventListener('click',e=>{ if(e.target===cf){cf.classList.remove('show');cfTask=null;} });
 
-// ---------- 豎守畑 遒ｺ隱阪ム繧､繧｢繝ｭ繧ｰ ----------
+// ---------- 汎用 確認ダイアログ ----------
 const ask=$('ask'); let askCb=null;
 function showConfirm(title,msg,onYes){
   $('askTitle').textContent=title; $('askMsg').textContent=msg;
@@ -1087,7 +1100,7 @@ $('askYes').onclick=()=>{ const cb=askCb; askCb=null; ask.classList.remove('show
 $('askNo').onclick=()=>{ askCb=null; ask.classList.remove('show'); };
 ask.addEventListener('click',e=>{ if(e.target===ask){askCb=null;ask.classList.remove('show');} });
 
-// ---------- 逾晄律繝医げ繝ｫ ----------
+// ---------- 祝日トグル ----------
 $('head').addEventListener('click',e=>{
   const c=e.target.closest('.dcell'); if(!c)return;
   const s=c.dataset.d; if(isWeekend(s))return;
@@ -1095,18 +1108,18 @@ $('head').addEventListener('click',e=>{
   save(); render();
 });
 
-// ---------- 霑ｽ蜉繝ｻ邱ｨ髮・・繝・・ ----------
+// ---------- 追加・編集ポップ ----------
 const ov=$('ov'); let editing=null, curType='plan';
 function setType(t){curType=t;document.querySelectorAll('#segType button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));}
 document.querySelectorAll('#segType button').forEach(b=>b.onclick=()=>setType(b.dataset.t));
 function openAdd(start,lane){
-  editing=null; $('mTitle').textContent='繧ｿ繧ｹ繧ｯ繧定ｿｽ蜉'; $('btnDelete').style.display='none';
+  editing=null; $('mTitle').textContent='タスクを追加'; $('btnDelete').style.display='none';
   setType('plan'); $('fTitle').value=''; $('fStart').value=start||fmt(new Date()); $('fEnd').value='';
   $('fLane').value=lane||0; $('fTime').value=''; $('fPlace').value=''; $('fWho').value='';
   ov.classList.add('show'); $('fTitle').focus();
 }
 function openEdit(t){
-  editing=t; $('mTitle').textContent='繧ｿ繧ｹ繧ｯ繧堤ｷｨ髮・; $('btnDelete').style.display='inline-block';
+  editing=t; $('mTitle').textContent='タスクを編集'; $('btnDelete').style.display='inline-block';
   setType(t.type); $('fTitle').value=t.title||''; $('fStart').value=t.start; $('fEnd').value=t.end||'';
   $('fLane').value=t.lane||0; $('fTime').value=t.time||''; $('fPlace').value=t.place||''; $('fWho').value=t.who||'';
   ov.classList.add('show');
@@ -1124,7 +1137,7 @@ $('btnSave').onclick=()=>{
 };
 $('btnDelete').onclick=()=>{ if(editing){state.tasks=state.tasks.filter(x=>x.id!==editing.id);save();render();} ov.classList.remove('show'); };
 
-// ---------- Delete繧ｭ繝ｼ縺ｧ蜑企勁 ----------
+// ---------- Deleteキーで削除 ----------
 window.addEventListener('keydown',e=>{
   if(e.key==='Delete'||e.key==='Backspace'){
     const ae=document.activeElement;
@@ -1134,21 +1147,21 @@ window.addEventListener('keydown',e=>{
     if(selectedId!==null){
       e.preventDefault();
       const tid=selectedId, t=state.tasks.find(x=>x.id===tid);
-      showConfirm('繧ｿ繧ｹ繧ｯ繧貞炎髯､','縲・+(t?t.title:'')+'縲阪ｒ蜑企勁縺励∪縺吶°・・,()=>{
+      showConfirm('タスクを削除','「'+(t?t.title:'')+'」を削除しますか？',()=>{
         state.tasks=state.tasks.filter(x=>x.id!==tid);
         selectedId=null; save(); render();
       });
     }else if(selectedNote!==null){
       e.preventDefault();
       const d=selectedNote;
-      showConfirm('繝｡繝｢繧貞炎髯､','縺薙・繝｡繝｢繧貞炎髯､縺励∪縺吶°・・,()=>{
+      showConfirm('メモを削除','このメモを削除しますか？',()=>{
         if(state.dayNotes) delete state.dayNotes[d];
         selectedNote=null; save(); renderNotes();
       });
     }else if(selectedRR!==null){
       e.preventDefault();
       const sel=selectedRR;
-      showConfirm('繝槭・繧ｫ繝ｼ繧貞炎髯､','縺薙・繝槭せ繧貞炎髯､縺励∪縺吶°・・,()=>{
+      showConfirm('マーカーを削除','このマスを削除しますか？',()=>{
         const row=(state.routineRows||[]).find(r=>r.id===sel.rid);
         if(row&&row.cells) delete row.cells[sel.date];
         selectedRR=null; save(); renderRoutines();
@@ -1161,7 +1174,7 @@ window.addEventListener('keydown',e=>{
   }
 });
 
-// ---------- 繝ｫ繝ｼ繝・ぅ繝ｳ陦・險ｭ螳壹Δ繝ｼ繝繝ｫ ----------
+// ---------- ルーティン行 設定モーダル ----------
 const rrOv=$('rrOv'), rrEditOv=$('rrEditOv');
 let rrEditIdx=null;
 
@@ -1169,14 +1182,14 @@ function renderRRList(){
   const rows=state.routineRows||[];
   let html='';
   if(!rows.length){
-    html='<p style="font-size:12px;color:#888;text-align:center;padding:12px 0">縺ｾ縺陦後′縺ゅｊ縺ｾ縺帙ｓ</p>';
+    html='<p style="font-size:12px;color:#888;text-align:center;padding:12px 0">まだ行がありません</p>';
   } else {
     rows.forEach((r,i)=>{
       const tc=contrastColor(r.color||'#f0f0f0');
       html+=`<div class="rr-list-item" style="background:${r.color||'#f0f0f0'}">
         <span style="flex:1;font-size:13px;font-weight:700;color:${tc}">${escapeHTML(r.label)}</span>
-        <span style="font-size:11px;color:${tc};opacity:.8">${(r.markers||[]).join(' / ')||'窶・}</span>
-        <button class="ghost rr-edit-btn" data-idx="${i}" style="font-size:11px;padding:3px 9px;color:${tc};background:rgba(0,0,0,.12)">邱ｨ髮・/button>
+        <span style="font-size:11px;color:${tc};opacity:.8">${(r.markers||[]).join(' / ')||'—'}</span>
+        <button class="ghost rr-edit-btn" data-idx="${i}" style="font-size:11px;padding:3px 9px;color:${tc};background:rgba(0,0,0,.12)">編集</button>
       </div>`;
     });
   }
@@ -1198,7 +1211,7 @@ $('rrAddBtn').onclick=()=>openRREdit(null);
 function openRREdit(idx){
   rrEditIdx=idx;
   const row=idx!==null?(state.routineRows||[])[idx]:null;
-  $('rrEditTitle').textContent=row?'繝ｫ繝ｼ繝・ぅ繝ｳ陦後ｒ邱ｨ髮・:'繝ｫ繝ｼ繝・ぅ繝ｳ陦後ｒ霑ｽ蜉';
+  $('rrEditTitle').textContent=row?'ルーティン行を編集':'ルーティン行を追加';
   $('rrFLabel').value=row?row.label:'';
   $('rrFColor').value=row?(row.color||'#fff9c4'):'#fff9c4';
   $('rrFColorHex').textContent=row?(row.color||'#fff9c4'):'#fff9c4';
@@ -1226,14 +1239,14 @@ $('rrFSave').onclick=()=>{
 $('rrFDelete').onclick=()=>{
   if(rrEditIdx!==null&&state.routineRows){
     const idx=rrEditIdx, row=state.routineRows[idx];
-    showConfirm('繝ｫ繝ｼ繝・ぅ繝ｳ陦後ｒ蜑企勁','縲・+(row?row.label:'')+'縲阪ｒ蜑企勁縺励∪縺吶°・・,()=>{
+    showConfirm('ルーティン行を削除','「'+(row?row.label:'')+'」を削除しますか？',()=>{
       state.routineRows.splice(idx,1);
       save(); rrEditOv.classList.remove('show'); render(); renderRRList();
     });
   }
 };
 
-// ---------- 譛医ず繝｣繝ｳ繝・----------
+// ---------- 月ジャンプ ----------
 function buildMonthJump(){
   $('monthJump').innerHTML=months.map((m,k)=>`<option value="${k}">${m.label}</option>`).join('');
 }
@@ -1277,19 +1290,19 @@ $('file').onchange=e=>{
       if(Store.isEncrypted(raw)) j=await Store.decrypt(raw, sessionPwd);
       else j=Store.migrate(raw);
       if(j){ state=j; await save(); render(); }
-    }catch(err){ alert('隱ｭ縺ｿ霎ｼ縺ｿ縺ｫ螟ｱ謨励＠縺ｾ縺励◆・医ヱ繧ｹ繝ｯ繝ｼ繝峨′驕輔≧蜿ｯ閭ｽ諤ｧ縺後≠繧翫∪縺呻ｼ・); }
+    }catch(err){ alert('読み込みに失敗しました（パスワードが違う可能性があります）'); }
   };
   r.readAsText(f);
 };
 
-// ---------- schedule.json 騾｣謳ｺ ----------
+// ---------- schedule.json 連携 ----------
 function refreshLinkStat(){
   const el=$('linkStat');
-  if(!Store.supportsFS){ el.textContent='(騾｣謳ｺ: 髱槫ｯｾ蠢懊ヶ繝ｩ繧ｦ繧ｶ)'; return; }
-  el.textContent = Store.hasFile ? ('迫 '+Store.fileName) : '(譛ｪ騾｣謳ｺ)';
+  if(!Store.supportsFS){ el.textContent='(連携: 非対応ブラウザ)'; return; }
+  el.textContent = Store.hasFile ? ('🔗 '+Store.fileName) : '(未連携)';
 }
 $('btnLink').onclick=async()=>{
-  if(!Store.supportsFS){ alert('縺薙・繝悶Λ繧ｦ繧ｶ縺ｯ schedule.json 逶ｴ謗･騾｣謳ｺ縺ｫ譛ｪ蟇ｾ蠢懊〒縺吶ゅ梧嶌蜃ｺ縲阪悟叙霎ｼ縲阪ｒ菴ｿ縺｣縺ｦ縺ｭ縲・); return; }
+  if(!Store.supportsFS){ alert('このブラウザは schedule.json 直接連携に未対応です。「書出」「取込」を使ってね。'); return; }
   try{
     await Store.bindFile();
     const fileState=await Store.readFile(sessionPwd);
@@ -1298,15 +1311,15 @@ $('btnLink').onclick=async()=>{
   }catch(e){}
 };
 $('btnLinkNew').onclick=async()=>{
-  if(!Store.supportsFS){ alert('縺薙・繝悶Λ繧ｦ繧ｶ縺ｯ schedule.json 逶ｴ謗･騾｣謳ｺ縺ｫ譛ｪ蟇ｾ蠢懊〒縺吶・); return; }
+  if(!Store.supportsFS){ alert('このブラウザは schedule.json 直接連携に未対応です。'); return; }
   try{
     await Store.createFile();
     await save(); refreshLinkStat();
-    alert('schedule.json 繧剃ｽ懈・縺励※騾｣謳ｺ縺励◆繧医０neDrive 縺ｮ蜷梧悄繝輔か繝ｫ繝縺ｫ鄂ｮ縺代・蜈ｱ譛峨〒縺阪ｋ縲・);
+    alert('schedule.json を作成して連携したよ。OneDrive の同期フォルダに置けば共有できる。');
   }catch(e){}
 };
 
-// ---------- 襍ｷ蜍包ｼ壹ヱ繧ｹ繝ｯ繝ｼ繝臥判髱｢繧定｡ｨ遉ｺ ----------
+// ---------- 起動：パスワード画面を表示 ----------
 (async()=>{
   const raw=Store.loadLocalRaw();
   if(!raw){
