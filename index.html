@@ -27,6 +27,8 @@ header.bar .sp{flex:1;}
 button{font:inherit;border:none;border-radius:6px;padding:6px 12px;background:#2e577d;color:#fff;cursor:pointer;}
 button.ghost{background:#3d6488;}
 button:hover{filter:brightness(1.08);}
+#btnCloudSync{position:relative;}
+#btnCloudSync.sync-pending::after{content:'◎';position:absolute;top:-8px;right:-8px;color:#4caf50;font-size:14px;line-height:1;text-shadow:0 0 3px rgba(0,0,0,0.4);}
 .mjump{font:inherit;border:none;border-radius:6px;padding:6px 8px;background:#2e577d;color:#fff;cursor:pointer;}
 .legend{font-size:11px;color:#cfe0f0;display:flex;gap:10px;flex-wrap:wrap;}
 #linkStat{font-size:11px;color:#bfe3c4;display:flex;align-items:center;}
@@ -137,17 +139,10 @@ button.cancel{background:#888;}
   <button id="btnNextM" class="ghost" title="次の月へ">▶</button>
   <button id="btnToday" class="ghost">今日へ</button>
   <button id="btnAdd">＋ 追加</button>
-  <button id="btnLink" class="ghost" title="同期フォルダの schedule.json と連携">🔗 連携</button>
-  <button id="btnLinkNew" class="ghost" title="新規 schedule.json を作成して連携">🆕</button>
-  <button id="btnExport" class="ghost">書出</button>
-  <button id="btnImport" class="ghost">取込</button>
-  <button id="btnCloudPush" class="ghost" title="クラウドに保存">☁️ 保存</button>
-  <button id="btnCloudPull" class="ghost" title="クラウドから読込">☁️ 読込</button>
-  <button id="btnCloudKey" class="ghost" title="同期コードを確認・変更">🔑 同期</button>
-  <button id="btnChangePw" class="ghost" title="パスワードを変更">🔑</button>
+  <button id="btnCloudSync" title="クラウドと同期">☁️ 同期</button>
+  <button id="btnCloudKey" class="ghost" title="同期コードを確認・変更">🔑</button>
+  <button id="btnChangePw" class="ghost" title="パスワードを変更">🔐</button>
   <button id="btnRR" class="ghost" title="ルーティン行の設定">⚙ ルーティン</button>
-  <span id="linkStat"></span>
-  <input id="file" type="file" accept="application/json" hidden>
 </header>
 
 <div id="scroll">
@@ -403,7 +398,9 @@ const Store = (() => {
       time:      t.time || '',
       place:     t.place || '',
       who:       t.who || '',
-      updatedAt: t.updatedAt || nowISO()
+      updatedAt: t.updatedAt || nowISO(),
+      deleted:   t.deleted   || false,
+      deletedAt: t.deletedAt || ''
     }));
     s.holidays      = Array.isArray(raw.holidays) ? raw.holidays.slice() : [];
     s.routineRows   = Array.isArray(raw.routineRows) ? raw.routineRows.map(r => ({
@@ -541,17 +538,34 @@ const Store = (() => {
     return _doWriteFile(state, password);
   }
 
-  // ---- 競合解決：meta.updatedAt が新しい方を採用 ----
-  // routineRows・dayNotes は新しい方が空でも古い方のデータを保持する（ファイル非対応時の上書き防止）
+  // ---- 競合解決：タスクはID単位マージ（tombstone対応）、他フィールドは新しい方を採用 ----
+  function mergeStates(local, cloud) {
+    if (!local) return cloud; if (!cloud) return local;
+    const lMap = Object.fromEntries(local.tasks.map(t=>[t.id,t]));
+    const cMap = Object.fromEntries(cloud.tasks.map(t=>[t.id,t]));
+    const allIds = [...new Set([...Object.keys(lMap),...Object.keys(cMap)])];
+    const mergedTasks = allIds.map(id => {
+      const l = lMap[id], c = cMap[id];
+      if (!c) return l; if (!l) return c;
+      return new Date(l.updatedAt||0) >= new Date(c.updatedAt||0) ? l : c;
+    });
+    const lt = new Date((local.meta && local.meta.updatedAt) || 0).getTime();
+    const ct = new Date((cloud.meta && cloud.meta.updatedAt) || 0).getTime();
+    const win = ct > lt ? cloud : local;
+    const los = ct > lt ? local : cloud;
+    return {
+      schemaVersion: 1,
+      meta: { updatedAt: nowISO(), owner: win.meta.owner || '' },
+      tasks: mergedTasks,
+      holidays: win.holidays || los.holidays || [],
+      routineRows: (win.routineRows && win.routineRows.length) ? win.routineRows : (los.routineRows || []),
+      dayNotes: Object.keys(win.dayNotes || {}).length ? win.dayNotes : (los.dayNotes || {})
+    };
+  }
+
   function newer(a, b) {
     if (!a) return b; if (!b) return a;
-    const ta = new Date((a.meta && a.meta.updatedAt) || 0).getTime();
-    const tb = new Date((b.meta && b.meta.updatedAt) || 0).getTime();
-    const win = tb > ta ? b : a;
-    const los = tb > ta ? a : b;
-    const routineRows = (win.routineRows && win.routineRows.length) ? win.routineRows : (los.routineRows || []);
-    const dayNotes = Object.keys(win.dayNotes || {}).length ? win.dayNotes : (los.dayNotes || {});
-    return { ...win, routineRows, dayNotes };
+    return mergeStates(a, b);
   }
 
   return {
@@ -561,7 +575,7 @@ const Store = (() => {
     restoreHandle, bindFile, createFile,
     readFile, readFileIfPermitted,
     writeFile, writeFileIfPermitted,
-    newer,
+    mergeStates, newer,
     get hasFile() { return !!fileHandle; },
     get fileName() { return fileHandle ? fileHandle.name : ''; }
   };
@@ -601,11 +615,18 @@ let sessionPwd = null;
 function id(){ return 'k'+Math.random().toString(36).slice(2,9); }
 function stamp(t){ if(t) t.updatedAt = Store.nowISO(); }
 
+function markPendingSync(){
+  const b=$('btnCloudSync'); if(b) b.classList.add('sync-pending');
+}
+function clearPendingSync(){
+  const b=$('btnCloudSync'); if(b) b.classList.remove('sync-pending');
+}
+
 async function save(){
   if(!state.meta) state.meta={updatedAt:'',owner:''};
   state.meta.updatedAt = Store.nowISO();
   await Store.saveLocalEnc(state, sessionPwd);
-  if(Store.hasFile) Store.writeFileIfPermitted(state, sessionPwd).catch(()=>{});
+  markPendingSync();
 }
 
 function seed(){return[
@@ -675,7 +696,7 @@ function render(){
   lanes.style.width=totalW+'px'; lanes.style.height=lanesH+'px';
   let ll='';
   for(let k=0;k<=LANES;k++) ll+=`<div class="laneline" style="top:${k*LANE_H}px;width:${totalW}px"></div>`;
-  state.tasks.forEach(t=>{
+  state.tasks.filter(t=>!t.deleted).forEach(t=>{
     const si=idxOf(t.start); if(si<0)return;
     const cls=['task']; if(t.type==='ms')cls.push('ms'); if(t.id===selectedId)cls.push('sel');
     ll+=`<div class="${cls.join(' ')}" data-id="${t.id}" style="left:${si*DAY_W+2}px;top:${(t.lane||0)*LANE_H+3}px">${labelHTML(t)}</div>`;
@@ -843,16 +864,8 @@ function hidePwScreen(){ pwScreen.style.display='none'; }
 
 async function afterAuth(){
   render();
-  refreshLinkStat();
   $('btnToday').click();
-  await Store.restoreHandle();
-  refreshLinkStat();
-  if(Store.hasFile){
-    try{
-      const fs=await Store.readFileIfPermitted(sessionPwd);
-      if(fs){ const m=Store.newer(state,fs); if(m!==state){ state=m; await Store.saveLocalEnc(state,sessionPwd); render(); } }
-    }catch(e){}
-  }
+  if(localStorage.getItem('cloudSyncKey')) await cloudSync(true);
 }
 
 $('pwSubmit').onclick=async()=>{
@@ -1138,7 +1151,7 @@ $('btnSave').onclick=()=>{
   if(editing){Object.assign(editing,obj);stamp(editing);} else{obj.id=id();stamp(obj);state.tasks.push(obj);}
   save(); render(); ov.classList.remove('show');
 };
-$('btnDelete').onclick=()=>{ if(editing){state.tasks=state.tasks.filter(x=>x.id!==editing.id);save();render();} ov.classList.remove('show'); };
+$('btnDelete').onclick=()=>{ if(editing){editing.deleted=true;editing.deletedAt=Store.nowISO();stamp(editing);save();render();} ov.classList.remove('show'); };
 
 // ---------- Deleteキーで削除 ----------
 window.addEventListener('keydown',e=>{
@@ -1151,7 +1164,7 @@ window.addEventListener('keydown',e=>{
       e.preventDefault();
       const tid=selectedId, t=state.tasks.find(x=>x.id===tid);
       showConfirm('タスクを削除','「'+(t?t.title:'')+'」を削除しますか？',()=>{
-        state.tasks=state.tasks.filter(x=>x.id!==tid);
+        if(t){t.deleted=true;t.deletedAt=Store.nowISO();stamp(t);}
         selectedId=null; save(); render();
       });
     }else if(selectedNote!==null){
@@ -1276,90 +1289,39 @@ buildMonthJump();
 $('btnAdd').onclick=()=>openAdd(fmt(new Date()),0);
 $('btnToday').onclick=()=>{const i=idxOf(fmt(new Date()));if(i>=0)scroll.scrollLeft=i*DAY_W-scroll.clientWidth/2;};
 
-$('btnExport').onclick=async()=>{
-  const blob=await Store.encrypt(state, sessionPwd);
-  const b=new Blob([JSON.stringify(blob,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='schedule.json';a.click();
-};
-
-$('btnImport').onclick=()=>$('file').click();
-$('file').onchange=e=>{
-  const f=e.target.files[0]; if(!f)return;
-  const r=new FileReader();
-  r.onload=async()=>{
-    try{
-      const raw=JSON.parse(r.result);
-      let j;
-      if(Store.isEncrypted(raw)) j=await Store.decrypt(raw, sessionPwd);
-      else j=Store.migrate(raw);
-      if(j){ state=j; await save(); render(); }
-    }catch(err){ alert('読み込みに失敗しました（パスワードが違う可能性があります）'); }
-  };
-  r.readAsText(f);
-};
-
-// ---------- schedule.json 連携 ----------
-function refreshLinkStat(){
-  const el=$('linkStat');
-  if(!Store.supportsFS){ el.textContent='(連携: 非対応ブラウザ)'; return; }
-  el.textContent = Store.hasFile ? ('🔗 '+Store.fileName) : '(未連携)';
-}
-$('btnLink').onclick=async()=>{
-  if(!Store.supportsFS){ alert('このブラウザは schedule.json 直接連携に未対応です。「書出」「取込」を使ってね。'); return; }
-  try{
-    await Store.bindFile();
-    const fileState=await Store.readFile(sessionPwd);
-    if(fileState){ const merged=Store.newer(state,fileState); if(merged!==state) state=merged; }
-    await save(); render(); refreshLinkStat();
-  }catch(e){}
-};
-$('btnLinkNew').onclick=async()=>{
-  if(!Store.supportsFS){ alert('このブラウザは schedule.json 直接連携に未対応です。'); return; }
-  try{
-    await Store.createFile();
-    await save(); refreshLinkStat();
-    alert('schedule.json を作成して連携したよ。OneDrive の同期フォルダに置けば共有できる。');
-  }catch(e){}
-};
-
 // ---------- クラウド同期（Cloudflare Workers） ----------
 const CLOUD_WORKER = 'https://schedule-sync.shimabukuro-tomoki.workers.dev';
 
-function getSyncKey(){
-  let k = localStorage.getItem('cloudSyncKey');
-  if(!k){ k = Math.random().toString(36).slice(2,9)+Math.random().toString(36).slice(2,9); localStorage.setItem('cloudSyncKey',k); }
-  return k;
-}
-
-$('btnCloudPush').onclick = async()=>{
-  const key = getSyncKey();
-  try{
-    const blob = await Store.encrypt(state, sessionPwd);
-    const res = await fetch(`${CLOUD_WORKER}/?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blob)});
-    if(res.ok) alert(`☁️ クラウドに保存したよ！\n\n同期コード: ${key}\n\n他のデバイスで「☁️ 読込」→ このコードを入力してね。`);
-    else alert('保存に失敗しました。');
-  }catch(e){ alert('接続エラー: '+e.message); }
-};
-
-$('btnCloudPull').onclick = async()=>{
+async function cloudSync(silent){
   let key = localStorage.getItem('cloudSyncKey');
-  if(!key){ key = prompt('同期コードを入力してね（他デバイスの「☁️ 保存」で表示されたコード）:'); if(!key) return; key=key.trim(); localStorage.setItem('cloudSyncKey',key); }
+  if(!key){
+    const ans = prompt('同期コードを入力してね（他デバイスの🔑ボタンで確認できるコード）:\n空のままOKを押すと新しいコードを自動生成します。');
+    if(ans === null) return;
+    key = ans.trim() || (Math.random().toString(36).slice(2,9)+Math.random().toString(36).slice(2,9));
+    localStorage.setItem('cloudSyncKey', key);
+    if(!ans.trim()) alert(`同期コードを発行したよ！\n\n${key}\n\n他のデバイスの🔑ボタンに入力してね。`);
+  }
   try{
     const res = await fetch(`${CLOUD_WORKER}/?key=${key}`);
-    if(res.status===404){ alert('データが見つからないよ。コードを確認してね。'); return; }
-    const blob = await res.json();
-    const cloudState = await Store.decrypt(blob, sessionPwd);
-    // ☁️読込はクラウドデータで完全置換（明示的に読込む操作なのでクラウドが正）
-    state = cloudState;
-    await save(); render();
-    alert('☁️ クラウドから読み込んだよ！');
-  }catch(e){ alert('接続エラーまたはパスワードが違います: '+e.message); }
-};
+    if(res.ok){
+      const blob = await res.json();
+      const cloudState = await Store.decrypt(blob, sessionPwd);
+      state = Store.mergeStates(state, cloudState);
+    }
+    const pushBlob = await Store.encrypt(state, sessionPwd);
+    const pushRes = await fetch(`${CLOUD_WORKER}/?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pushBlob)});
+    if(!pushRes.ok && !silent){ alert('クラウドへの保存に失敗しました。'); return; }
+    await save(); clearPendingSync(); render();
+    if(!silent) alert('☁️ 同期完了！');
+  }catch(e){ if(!silent) alert('同期エラー: '+e.message); }
+}
+
+$('btnCloudSync').onclick = ()=> cloudSync(false);
 
 $('btnCloudKey').onclick = ()=>{
   const cur = localStorage.getItem('cloudSyncKey') || '（未設定）';
-  const ans = prompt(`現在の同期コード: ${cur}\n\n変更する場合は新しいコードを入力（そのままEnterでキャンセル）:`);
-  if(ans && ans.trim()){ localStorage.setItem('cloudSyncKey', ans.trim()); alert('同期コードを変更したよ！'); }
+  const ans = prompt(`現在の同期コード:\n${cur}\n\n変更する場合は新しいコードを入力（そのままEnterでキャンセル）:`);
+  if(ans !== null && ans.trim() && ans.trim() !== cur){ localStorage.setItem('cloudSyncKey', ans.trim()); alert('同期コードを変更したよ！'); }
 };
 
 // ---------- 起動：パスワード画面を表示 ----------
