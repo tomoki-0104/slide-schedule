@@ -99,6 +99,7 @@ button.cancel{background:#888;}
 /* ルーティン行・ノート */
 #routines{position:absolute;left:0;z-index:4;}
 #daynotes{position:absolute;left:0;z-index:4;border-top:2px solid #aaa;}
+#daynotes2{position:absolute;left:0;z-index:4;border-top:1px solid #ccc;}
 .routine-row{position:relative;height:30px;border-bottom:1px solid rgba(0,0,0,.08);}
 .rr-label{position:sticky;left:0;z-index:8;width:52px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border-right:1px solid rgba(0,0,0,.15);flex-shrink:0;white-space:nowrap;overflow:hidden;}
 .rcell{position:absolute;top:0;width:46px;height:30px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;-webkit-user-select:none;user-select:none;border-right:1px solid rgba(0,0,0,.06);touch-action:manipulation;}
@@ -106,9 +107,10 @@ button.cancel{background:#888;}
 .rcell.sel{outline:2px solid #2176c2;outline-offset:-2px;background:rgba(33,118,194,.22);z-index:7;}
 .rcell-grey{background:rgba(0,0,0,.06);}
 .note-label{position:sticky;left:0;z-index:8;width:52px;height:100%;display:inline-flex;align-items:flex-start;justify-content:center;padding-top:4px;font-size:10px;font-weight:700;background:#fffde7;color:#888;border-right:1px solid #ddd;flex-shrink:0;}
-.ncell{position:absolute;top:0;width:46px;min-height:100%;font-size:11px;line-height:1.4;padding:2px 3px;white-space:pre;overflow:visible;border-right:1px solid rgba(0,0,0,.04);color:#333;}
-.ncell.has{z-index:6;}
-.ncell.sel{outline:2px solid #2176c2;background:rgba(33,118,194,.16);z-index:7;}
+.ncell,.ncell2{position:absolute;top:0;width:46px;min-height:100%;font-size:11px;line-height:1.4;padding:2px 3px;white-space:pre;overflow:visible;border-right:1px solid rgba(0,0,0,.04);color:#333;}
+.ncell.has,.ncell2.has{z-index:6;}
+.ncell.sel,.ncell2.sel{outline:2px solid #2176c2;background:rgba(33,118,194,.16);z-index:7;}
+.ncell2-grey{color:#666;}
 .noteEditTa{position:absolute;font:inherit;font-size:11px;line-height:1.4;padding:2px 3px;border:1px solid #2176c2;z-index:10;background:rgba(255,255,200,.98);outline:none;resize:both;overflow:auto;white-space:pre;}
 .ncell-grey{color:#666;}
 /* ルーティン設定モーダル */
@@ -153,6 +155,7 @@ button.cancel{background:#888;}
     <div id="lanes"></div>
     <div id="routines"></div>
     <div id="daynotes"></div>
+    <div id="daynotes2"></div>
   </div>
 </div>
 
@@ -382,7 +385,7 @@ const Store = (() => {
 
   // ---- データモデル / スキーマ移行 ----
   function emptyState() {
-    return { schemaVersion: 1, meta: { updatedAt: nowISO(), owner: '' }, tasks: [], holidays: [], routineRows: [], dayNotes: {} };
+    return { schemaVersion: 1, meta: { updatedAt: nowISO(), owner: '' }, tasks: [], holidays: [], routineRows: [], dayNotes: {}, dayNotes2: {} };
   }
 
   function migrate(raw) {
@@ -410,7 +413,8 @@ const Store = (() => {
       markers: Array.isArray(r.markers) ? r.markers : (r.markers ? String(r.markers).split(',').map(x=>x.trim()).filter(Boolean) : []),
       cells:   (r.cells && typeof r.cells === 'object') ? r.cells : {}
     })) : [];
-    s.dayNotes      = (raw.dayNotes && typeof raw.dayNotes === 'object') ? raw.dayNotes : {};
+    s.dayNotes      = (raw.dayNotes  && typeof raw.dayNotes  === 'object') ? raw.dayNotes  : {};
+    s.dayNotes2     = (raw.dayNotes2 && typeof raw.dayNotes2 === 'object') ? raw.dayNotes2 : {};
     s.schemaVersion = 1;
     s.meta = {
       updatedAt: (raw.meta && raw.meta.updatedAt) || nowISO(),
@@ -559,7 +563,8 @@ const Store = (() => {
       tasks: mergedTasks,
       holidays: win.holidays || los.holidays || [],
       routineRows: (win.routineRows && win.routineRows.length) ? win.routineRows : (los.routineRows || []),
-      dayNotes: Object.keys(win.dayNotes || {}).length ? win.dayNotes : (los.dayNotes || {})
+      dayNotes:  Object.keys(win.dayNotes  || {}).length ? win.dayNotes  : (los.dayNotes  || {}),
+      dayNotes2: Object.keys(win.dayNotes2 || {}).length ? win.dayNotes2 : (los.dayNotes2 || {})
     };
   }
 
@@ -652,6 +657,7 @@ function contrastColor(hex){
 
 let selectedId=null;
 let selectedNote=null;
+let selectedNote2=null;
 let selectedRR=null;  // {rid,date} ルーティンセル選択
 
 function render(){
@@ -659,7 +665,7 @@ function render(){
   const LANES=laneCount(), lanesH=LANES*LANE_H, fullH=HEAD_H+lanesH;
   const totalW=days.length*DAY_W;
   const routineH=(state.routineRows||[]).length*LANE_H;
-  const totalH=fullH+routineH+NOTE_H;
+  const totalH=fullH+routineH+NOTE_H*2;
   grid.style.width=totalW+'px'; grid.style.height=totalH+'px';
 
   let bg=''; colbg.style.width=totalW+'px'; colbg.style.height=totalH+'px';
@@ -705,6 +711,7 @@ function render(){
 
   renderRoutines();
   renderNotes();
+  renderNotes2();
 }
 
 function labelHTML(t){
@@ -788,52 +795,80 @@ function rrCellClick(rid,date){
 }
 
 // ---------- ノート欄描画 ----------
-let noteInline=null;
-function renderNotes(){
-  const dn=$('daynotes'); if(!dn)return;
-  const rows=state.routineRows||[];
-  const fullH=HEAD_H+laneCount()*LANE_H;
-  const routineH=rows.length*LANE_H;
-  const totalW=days.length*DAY_W;
-  dn.style.top=(fullH+routineH)+'px';
-  dn.style.width=totalW+'px';
-  dn.style.height=NOTE_H+'px';
-  if(noteInline)return; // textarea 編集中はスキップ
+let noteInline=null, noteInline2=null;
 
+function _renderNotesRow(elId, notesObj, cellClass, selectedDate, topPx){
+  const dn=$(elId); if(!dn)return;
+  const totalW=days.length*DAY_W;
+  dn.style.top=topPx+'px'; dn.style.width=totalW+'px'; dn.style.height=NOTE_H+'px';
   let html=`<div class="note-label">メモ</div>`;
   days.forEach((s,i)=>{
     const gc=isGrey(s)?' ncell-grey':'';
-    const raw=(state.dayNotes||{})[s]||'';
-    const hc=raw?' has':'';
-    const sc=(selectedNote===s)?' sel':'';
-    const txt=escapeHTML(raw);
-    html+=`<div class="ncell${gc}${hc}${sc}" data-date="${s}" data-left="${i*DAY_W}" style="left:${i*DAY_W}px">${txt}</div>`;
+    const raw=(notesObj||{})[s]||'';
+    const hc=raw?' has':''; const sc=(selectedDate===s)?' sel':'';
+    html+=`<div class="${cellClass}${gc}${hc}${sc}" data-date="${s}" data-left="${i*DAY_W}" style="left:${i*DAY_W}px">${escapeHTML(raw)}</div>`;
   });
   dn.innerHTML=html;
 }
-function openNoteEdit(date,leftPx){
-  closeNoteEdit();
-  const dn=$('daynotes');
+function _notesTop(){
+  const rows=state.routineRows||[];
+  return HEAD_H+laneCount()*LANE_H+rows.length*LANE_H;
+}
+function renderNotes(){
+  if(noteInline)return;
+  _renderNotesRow('daynotes', state.dayNotes, 'ncell', selectedNote, _notesTop());
+}
+function renderNotes2(){
+  if(noteInline2)return;
+  const dn=$('daynotes2'); if(!dn)return;
+  const totalW=days.length*DAY_W;
+  const topPx=_notesTop()+NOTE_H;
+  dn.style.top=topPx+'px'; dn.style.width=totalW+'px'; dn.style.height=NOTE_H+'px';
+  let html='<div class="note-label" style="background:#fffde7"></div>'; // ラベルなし（スペースのみ）
+  days.forEach((s,i)=>{
+    const gc=isGrey(s)?' ncell-grey':'';
+    const raw=(state.dayNotes2||{})[s]||'';
+    const hc=raw?' has':''; const sc=(selectedNote2===s)?' sel':'';
+    html+=`<div class="ncell2${gc}${hc}${sc}" data-date="${s}" data-left="${i*DAY_W}" style="left:${i*DAY_W}px">${escapeHTML(raw)}</div>`;
+  });
+  dn.innerHTML=html;
+}
+
+function _openNoteEdit(elId, notesKey, date, leftPx, inlineRef, closeFn, renderFn){
+  closeFn();
+  const dn=$(elId);
   const ta=document.createElement('textarea');
   ta.className='noteEditTa';
-  ta.value=(state.dayNotes||{})[date]||'';
+  ta.value=(state[notesKey]||{})[date]||'';
   ta.style.left=leftPx+'px'; ta.style.top='0'; ta.style.width=(DAY_W*5)+'px'; ta.style.height=NOTE_H+'px';
   ta.dataset.date=date;
-  dn.appendChild(ta); ta.focus(); noteInline=ta;
+  dn.appendChild(ta); ta.focus(); inlineRef.val=ta;
   ta.addEventListener('input',()=>{
-    if(!state.dayNotes)state.dayNotes={};
-    if(ta.value.trim()==='') delete state.dayNotes[date];
-    else state.dayNotes[date]=ta.value;
+    if(!state[notesKey])state[notesKey]={};
+    if(ta.value.trim()==='') delete state[notesKey][date];
+    else state[notesKey][date]=ta.value;
     save();
   });
   ta.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){ closeNoteEdit(); }
-    else if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); closeNoteEdit(); }
+    if(e.key==='Escape'){ closeFn(); }
+    else if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); closeFn(); }
   });
-  ta.addEventListener('blur',()=>setTimeout(closeNoteEdit,80));
+  ta.addEventListener('blur',()=>setTimeout(closeFn,80));
+}
+const ni1={val:null}, ni2={val:null};
+function openNoteEdit(date,leftPx){
+  _openNoteEdit('daynotes','dayNotes',date,leftPx,ni1,closeNoteEdit,renderNotes);
+  noteInline=ni1.val;
 }
 function closeNoteEdit(){
-  if(!noteInline)return; noteInline.remove(); noteInline=null; renderNotes();
+  if(!ni1.val)return; ni1.val.remove(); ni1.val=null; noteInline=null; renderNotes();
+}
+function openNoteEdit2(date,leftPx){
+  _openNoteEdit('daynotes2','dayNotes2',date,leftPx,ni2,closeNoteEdit2,renderNotes2);
+  noteInline2=ni2.val;
+}
+function closeNoteEdit2(){
+  if(!ni2.val)return; ni2.val.remove(); ni2.val=null; noteInline2=null; renderNotes2();
 }
 
 // ---------- パスワード画面 ----------
@@ -918,7 +953,7 @@ $('pwChSave').onclick=async()=>{
 
 // ---------- scroll / select / inline / task-drag ----------
 const scroll=$('scroll'), lanes=$('lanes');
-let mode=null, sx=0, sl=0, moved=false, startCell=null, selStart=0, selEnd=0, selLane=0, selBox=null;
+let mode=null, sx=0, sy=0, sl=0, st=0, moved=false, startCell=null, selStart=0, selEnd=0, selLane=0, selBox=null;
 let taskDrag=null;
 let pendingCell=null;
 let lastTapId=null, lastTapTime=0;
@@ -935,10 +970,13 @@ scroll.addEventListener('pointerdown',e=>{
   // ルーティン行・メモのセルは記録だけして、スクロール処理に合流（ドラッグ移動可・ダブルクリックで入力）
   const rcell=e.target.closest('.rcell');
   const ncell=e.target.closest('.ncell');
-  pendingCell = rcell ? {kind:'rr',cell:rcell}
-              : ncell ? {kind:'note',cell:ncell}
+  const ncell2=e.target.closest('.ncell2');
+  pendingCell = rcell   ? {kind:'rr',   cell:rcell}
+              : ncell   ? {kind:'note',  cell:ncell}
+              : ncell2  ? {kind:'note2', cell:ncell2}
               : null;
-  if(!ncell && selectedNote!==null){ selectedNote=null; renderNotes(); }
+  if(!ncell  && selectedNote!==null){  selectedNote=null;  renderNotes();  }
+  if(!ncell2 && selectedNote2!==null){ selectedNote2=null; renderNotes2(); }
   if(!rcell && selectedRR!==null){ selectedRR=null; renderRoutines(); }
   if(!rcell && !ncell){
     const taskEl=e.target.closest('.task');
@@ -953,6 +991,7 @@ scroll.addEventListener('pointerdown',e=>{
       return;
     }
     if(e.target.closest('.inlineEdit')) return;
+    if(e.target.closest('.noteEditTa')) return;
     if(selectedId!==null){selectedId=null; render();}
     removeInline();
     const overLanes=e.target.closest('#lanes');
@@ -967,7 +1006,7 @@ scroll.addEventListener('pointerdown',e=>{
   } else {
     startCell=null;
   }
-  mode='scroll'; sx=e.clientX; sl=scroll.scrollLeft; moved=false;
+  mode='scroll'; sx=e.clientX; sy=e.clientY; sl=scroll.scrollLeft; st=scroll.scrollTop; moved=false;
   scroll.classList.add('drag');
 });
 window.addEventListener('pointermove',e=>{
@@ -987,8 +1026,10 @@ window.addEventListener('pointermove',e=>{
     return;
   }
   if(mode==='scroll'){
-    const dx=e.clientX-sx; if(Math.abs(dx)>5)moved=true;
+    const dx=e.clientX-sx, dy=e.clientY-sy;
+    if(Math.abs(dx)>5||Math.abs(dy)>5)moved=true;
     scroll.scrollLeft=sl-dx;
+    scroll.scrollTop=st-dy;
   }else if(mode==='range'){
     const c=cellFromEvent(e);
     selEnd=Math.max(0,Math.min(days.length-1,c.di));
@@ -1032,12 +1073,14 @@ window.addEventListener('pointerup',e=>{
         if(lastTapId===cid && now-lastTapTime<DBL_MS){
           lastTapId=null; lastTapTime=0;
           if(pendingCell.kind==='rr') rrCellClick(c.dataset.rid,c.dataset.date);
+          else if(pendingCell.kind==='note2') openNoteEdit2(c.dataset.date,parseInt(c.dataset.left));
           else openNoteEdit(c.dataset.date,parseInt(c.dataset.left));
         }else{
           lastTapId=cid; lastTapTime=now;
-          // 1回目タップ：選択状態に（タスク/メモ/ルーティンは排他、Deleteキーで削除可能）
           if(pendingCell.kind==='note'){
-            selectedId=null; selectedRR=null; selectedNote=c.dataset.date; render();
+            selectedId=null; selectedRR=null; selectedNote2=null; selectedNote=c.dataset.date; render();
+          }else if(pendingCell.kind==='note2'){
+            selectedId=null; selectedRR=null; selectedNote=null; selectedNote2=c.dataset.date; render();
           }else if(pendingCell.kind==='rr'){
             selectedId=null; selectedNote=null;
             selectedRR={rid:c.dataset.rid,date:c.dataset.date}; render();
@@ -1174,6 +1217,13 @@ window.addEventListener('keydown',e=>{
         if(state.dayNotes) delete state.dayNotes[d];
         selectedNote=null; save(); renderNotes();
       });
+    }else if(selectedNote2!==null){
+      e.preventDefault();
+      const d=selectedNote2;
+      showConfirm('メモを削除','このメモを削除しますか？',()=>{
+        if(state.dayNotes2) delete state.dayNotes2[d];
+        selectedNote2=null; save(); renderNotes2();
+      });
     }else if(selectedRR!==null){
       e.preventDefault();
       const sel=selectedRR;
@@ -1186,6 +1236,7 @@ window.addEventListener('keydown',e=>{
   }else if(e.key==='Escape'){
     if(selectedId!==null){selectedId=null; render();}
     if(selectedNote!==null){selectedNote=null; renderNotes();}
+    if(selectedNote2!==null){selectedNote2=null; renderNotes2();}
     if(selectedRR!==null){selectedRR=null; renderRoutines();}
   }
 });
