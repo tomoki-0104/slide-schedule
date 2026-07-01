@@ -73,6 +73,14 @@ let selectedNote4=null;
 let selectedNote5=null;
 let selectedRR=null;  // {rid,date} ルーティンセル選択
 
+function updateTodayLine(){
+  const tIdx=idxOf(fmt(new Date()));
+  const today=$('today');
+  if(!today||tIdx<0)return;
+  const now=new Date(), minOfDay=now.getHours()*60+now.getMinutes();
+  today.style.left=(tIdx*DAY_W+minOfDay/1440*DAY_W)+'px';
+}
+
 function render(){
   const colbg=$('colbg'),head=$('head'),lanes=$('lanes'),grid=$('grid');
   const LANES=laneCount(), lanesH=LANES*LANE_H, fullH=HEAD_H+lanesH;
@@ -90,7 +98,7 @@ function render(){
   colbg.innerHTML=bg;
 
   const tIdx=idxOf(fmt(new Date())), today=$('today');
-  if(tIdx>=0){today.style.display='block';today.style.left=(tIdx*DAY_W)+'px';today.style.height=totalH+'px';}
+  if(tIdx>=0){today.style.display='block';today.style.height=totalH+'px';updateTodayLine();}
   else today.style.display='none';
 
   // header month groups
@@ -911,6 +919,9 @@ scroll.addEventListener('scroll',()=>{
   if(sel && parseInt(sel.value,10)!==k) sel.value=k;
 });
 buildMonthJump();
+
+// ---------- 今日の縦線を1分ごとに更新 ----------
+setInterval(updateTodayLine, 60000);
 
 // ---------- toolbar ----------
 $('btnAdd').onclick=()=>openAdd(fmt(new Date()),0);
