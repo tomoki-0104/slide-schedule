@@ -1,0 +1,13 @@
+{
+  "name": "schedule-pwa-browser-tests",
+  "version": "1.0.0",
+  "description": "スケジュールアプリ ブラウザ動作テスト（Playwright）",
+  "scripts": {
+    "test": "node drag_comparison_test.js",
+    "test:drag": "node drag_comparison_test.js"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

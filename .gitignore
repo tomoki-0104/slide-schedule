@@ -1,0 +1,5 @@
+browser-tests/node_modules/
+browser-tests/package-lock.json
+browser-tests/screenshots/
+browser-tests/screenshots_verify/
+browser-tests/test_report.json
