@@ -545,11 +545,6 @@ window.addEventListener('pointerup',e=>{
           state[tKey][tDate]=srcVal;
           delete state[nd.sourceKey][nd.sourceDate];
           selectedNote=null; selectedNote2=null; selectedNote3=null; selectedNote4=null; selectedNote5=null;
-          if(tKind==='note')       selectedNote=tDate;
-          else if(tKind==='note2') selectedNote2=tDate;
-          else if(tKind==='note3') selectedNote3=tDate;
-          else if(tKind==='note4') selectedNote4=tDate;
-          else                     selectedNote5=tDate;
           save(); render();
         }
       }
@@ -566,6 +561,14 @@ window.addEventListener('pointerup',e=>{
         else                       openNoteEdit5(nd.sourceDate,leftPx);
       }else{
         lastTapId=cid; lastTapTime=now2;
+        selectedId=null; selectedRR=null;
+        selectedNote=null; selectedNote2=null; selectedNote3=null; selectedNote4=null; selectedNote5=null;
+        if(nd.kind==='note')       selectedNote=nd.sourceDate;
+        else if(nd.kind==='note2') selectedNote2=nd.sourceDate;
+        else if(nd.kind==='note3') selectedNote3=nd.sourceDate;
+        else if(nd.kind==='note4') selectedNote4=nd.sourceDate;
+        else                       selectedNote5=nd.sourceDate;
+        render();
       }
     }
     return;

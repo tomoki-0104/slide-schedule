@@ -2,4 +2,5 @@ browser-tests/node_modules/
 browser-tests/package-lock.json
 browser-tests/screenshots/
 browser-tests/screenshots_verify/
+browser-tests/screenshots_bug/
 browser-tests/test_report.json
